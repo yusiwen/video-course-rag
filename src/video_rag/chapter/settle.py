@@ -7,7 +7,7 @@ not been animated in yet. `jump` is the first second inside the unit where OCR
 recovers the same title we recorded at the unit's midpoint -- i.e. a frame a
 human would recognize as "this is the slide I clicked".
 """
-from ..ocr import backend as ocr
+from ..ocr import backend
 from ..paths import run as _run
 import difflib
 import json
@@ -40,7 +40,7 @@ def grab(video, t, out, region, size):
 
 def ocr(png):
     try:
-        return ocr.read(png)
+        return backend.read(png)
     except Exception:
         return []
 

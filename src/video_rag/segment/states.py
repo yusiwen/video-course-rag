@@ -14,12 +14,13 @@ So boundaries are picked as *novelty peaks with a refractory period*:
   4. units = spans between accepted boundaries; OCR each; merge neighbours
      whose OCR title is identical
 """
-from ..ocr import backend as ocr
+from ..ocr import backend
 import json
 import os
 import re
 import subprocess
 import sys
+import time
 
 import numpy as np
 
@@ -88,16 +89,51 @@ def grab(video, t, out, region, size):
         vf = [f"crop={int(SW*w)//2*2}:{int(SH*h)//2*2}:{int(SW*x)//2*2}:{int(SH*y)//2*2}"]
     sh(["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.2f}", "-i", video, "-frames:v", "1",
         "-vf", ",".join(vf), out])
-    return out if os.path.exists(out) and os.path.getsize(out) > 0 else None
+    return out if _complete_png(out) else None
+
+
+def _complete_png(path, wait=1.0):
+    """True once the file on disk is a finished PNG, not a half-written one.
+
+    ffmpeg reporting success does not mean the bytes are on disk, and OCR on a
+    truncated image returns no lines rather than an error — which would change
+    the mode classification and therefore the segmentation, silently.
+    """
+    tail = b"IEND\xaeB`\x82"
+    deadline = time.time() + wait
+    while True:
+        try:
+            if os.path.getsize(path) > len(tail):
+                with open(path, "rb") as fh:
+                    fh.seek(-len(tail), 2)
+                    if fh.read(len(tail)) == tail:
+                        return True
+        except OSError:
+            pass
+        if time.time() >= deadline:
+            return False
+        time.sleep(0.02)
+
+
+_FAILED = set()
 
 
 def ocr(png):
     if not png:
         return []
-    try:
-        return ocr.read(png)
-    except Exception:
-        return []
+    for attempt in (0, 1):
+        try:
+            lines = backend.read(png)
+            if lines or attempt:
+                return lines
+        except Exception as e:                     # noqa: BLE001 - reported below
+            if attempt:
+                if png not in _FAILED:
+                    _FAILED.add(png)
+                    print(f"  ! OCR failed on {os.path.basename(png)}: {e}", file=sys.stderr)
+                return []
+        time.sleep(0.03)
+    return []
 
 
 def brightness(video, t):
