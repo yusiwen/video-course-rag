@@ -45,3 +45,20 @@ observed while building the pipeline, not guessed.
   neutral labels like `幻灯片（37 分钟）` on purpose — inventing a topic reads worse
   than admitting there is none — and `vrag audit` reports how much of the table of
   contents that is.
+
+## Two failure modes that look like success
+
+Both of these were found by comparing this tool's output against the pipeline it
+was ported from, and both produced a package that looked fine and was wrong.
+
+- **A reused name hides a module.** `from ..ocr import backend as ocr` in a file
+  that already defines `ocr(png)` binds the module to a name the local function
+  then shadows: every `ocr.read(...)` raises `AttributeError`, an outer
+  `try/except` turns that into `[]`, and segmentation runs with no screen text
+  at all. Nothing crashes; the unit count just changes and every unit is
+  classified `desktop`. Do not alias an import to a name the module already uses.
+- **A cache trusts its own contents.** The calibration cache stored every frame
+  it had seen, including frames read while OCR was broken. Empty entries never
+  expire, so the poisoned vocabulary outlived the bug and kept changing which
+  title band could be found. Cache only successful results, and treat an empty
+  result as a miss.
