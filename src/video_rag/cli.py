@@ -140,7 +140,9 @@ def main(argv=None) -> int:
             extract_audio(run)
         stage("asr", run.id)
         stage("sentences", run.id)
-        stage("states", run.id)
+        # segmentation takes (video, outdir), not a run id
+        src = run.read_json(run.source) or {}
+        stage("states", src.get("video", ""), str(run.root))
         stage("refine", str(run.root))
         return 0
 
