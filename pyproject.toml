@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "video-course-rag"
+version = "0.1.0a1"
+description = "Turn recorded lectures into a searchable, self-contained course package."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "yusiwen" }]
+keywords = ["lecture", "video", "transcript", "retrieval", "offline"]
+classifiers = [
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Operating System :: MacOS",
+]
+dependencies = []
+
+[project.optional-dependencies]
+asr = ["funasr>=1.1", "torch", "torchaudio"]
+dev = ["pytest"]
+
+[project.scripts]
+vrag = "video_rag.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/yusiwen/video-course-rag"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+video_rag = ["pack/assets/*"]

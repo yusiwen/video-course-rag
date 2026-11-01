@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title data-i18n="title">课程索引</title>
+<style>
+__CSS__
+</style></head>
+<body>
+<aside>
+  <header>
+    <h1 id="cname" data-i18n="course">课程</h1>
+    <div id="cmeta"></div>
+    <select id="sel" hidden></select>
+    <input id="q" placeholder="搜索：讲师原话或章节标题…" data-i18n-ph="search" autocomplete="off">
+    <div class="tools"><button id="bsub" class="on" data-i18n="subs_on">字幕 开</button>
+      <button id="btr" data-i18n="view_transcript">转写</button>
+      <button id="blang" title="中文 / English">EN</button>
+      <button id="bset" title="LLM 设置" data-i18n-title="settings_title" data-i18n="settings">设置</button></div>
+    <div id="askrow"><input id="aq" placeholder="问 AI：这个课里的…" data-i18n-ph="ask_ph" autocomplete="off" disabled>
+      <button id="abtn" disabled data-i18n="ask_btn">问</button></div>
+    <div id="astat"></div>
+  </header>
+  <div id="list"></div>
+  <div class="hint"><kbd>j</kbd>/<kbd>k</kbd> 上下章 · <kbd>/</kbd> 搜索 · <kbd>space</kbd> 播放</div>
+</aside>
+<main>
+  <div class="vwrap">
+    <video id="v" controls preload="metadata" hidden></video>
+    <div id="sub"></div>
+  </div>
+  <div id="vpane">
+    <b>还没有视频</b>
+    <div>把本页放进课程视频所在的目录，然后选择该目录；<br>页面按文件内容（大小 + 首尾 4MB 的 SHA-1）匹配索引，不看文件名。</div>
+    <div class="btns">
+      <button id="bdir">选择视频目录…</button>
+      <button id="bfiles">选择视频文件…</button>
+    </div>
+    <div id="vstat"></div>
+  </div>
+  <div id="cap"></div>
+</main>
+<input type="file" id="fdir" webkitdirectory multiple hidden>
+<input type="file" id="ffiles" multiple hidden accept="video/*,.mp4,.m4v,.mov,.mkv,.webm">
+
+<dialog id="dlg">
+  <div class="hd" data-i18n="settings_head">LLM 设置</div>
+  <div class="bd">
+    <div>
+      <label for="ssel" data-i18n="provider">服务商</label>
+      <select id="ssel">
+        <option value="deepseek">DeepSeek</option>
+        <option value="openai">OpenAI</option>
+        <option value="openrouter">OpenRouter</option>
+        <option value="ollama" data-i18n="provider_ollama">本地 Ollama</option>
+        <option value="custom" data-i18n="provider_custom">自定义（OpenAI 兼容）</option>
+      </select>
+    </div>
+    <div class="two">
+      <div><label for="surl">base_url</label><input id="surl" autocomplete="off" spellcheck="false"></div>
+      <div><label for="smodel">model</label><input id="smodel" autocomplete="off" spellcheck="false"></div>
+    </div>
+    <div><label for="skey">API key</label><input id="skey" type="password" autocomplete="off" spellcheck="false"></div>
+    <div class="two">
+      <div><label for="sk" data-i18n="ctx_k">上下文片段数 k</label><input id="sk" type="number" min="1" max="8" step="1"></div>
+      <div><label for="smt">max_tokens</label><input id="smt" type="number" min="64" max="2000" step="64"></div>
+    </div>
+    <div class="note">key 只存在本机浏览器的 localStorage 里，提问时由本页直接发往上面的端点。<br>
+      <b>注意</b>：所有 file:// 页面共用同一个存储，同机其它本地网页也读得到这个 key；公用电脑请用完点「清除」。</div>
+    <div id="sstat" class="note"></div>
+  </div>
+  <div class="ft">
+    <button id="sclear" data-i18n="clear">清除</button>
+    <button id="stest" data-i18n="test">测试连接</button>
+    <button id="scancel" data-i18n="cancel">取消</button>
+    <button id="ssave" data-i18n="save">保存</button>
+  </div>
+</dialog>
+
+<dialog id="scandlg">
+  <div class="hd" data-i18n="scan_head">扫描结果</div>
+  <div class="bd" id="scanbody"></div>
+  <div class="ft"><button id="scanok" data-i18n="close">关闭</button></div>
+</dialog>
+
+<script>
+__JS__
+</script></body></html>

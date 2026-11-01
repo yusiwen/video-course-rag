@@ -1,0 +1,23 @@
+# ---- runs carry the recorded material; never commit them --------------------
+runs/
+# ---- packages and build products -------------------------------------------
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.py[cod]
+.venv*/
+# ---- demo artifacts are generated ------------------------------------------
+examples/*.mp4
+examples/*.wav
+examples/slides/
+examples/runs/
+# ---- native OCR helper: built from source -------------------------------
+native/ocr/ocr
+# ---- secrets and local config --------------------------------------------
+.env
+.env.*
+!.env.example
+# ---- macOS ---------------------------------------------------------------
+.DS_Store
+._*

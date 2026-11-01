@@ -1,0 +1,912 @@
+const DATA = __DATA__;
+
+// ---- chrome language (subtitle text and chapter titles are never translated) --
+const I18N = {
+  zh: {
+    title: '课程索引', course: '课程',
+    search: '搜索：讲师原话或章节标题…',
+    subs_on: '字幕 开', subs_off: '字幕 关',
+    view_transcript: '转写', view_chapters: '章节',
+    settings: '设置', settings_title: 'LLM 设置', settings_head: 'LLM 设置',
+    provider: '服务商', provider_ollama: '本地 Ollama',
+    provider_custom: '自定义（OpenAI 兼容）',
+    ctx_k: '上下文片段数 k', clear: '清除', test: '测试连接',
+    cancel: '取消', save: '保存', close: '关闭', scan_head: '扫描结果',
+    ask_ph: '问 AI：这个课里的…', ask_btn: '问',
+    ask_disabled: '未配置 API key — 检索仍可用；点「设置」填入自己的 key 后可用提问。',
+    key_now: '当前 key：', key_none: '未配置',
+    no_video: '还没有视频',
+    no_video_help: '把本页放进课程视频所在的目录，然后选择该目录；页面按文件内容（大小 + 首尾 4MB 的 SHA-1）匹配索引，不看文件名。',
+    pick_dir: '选择视频目录…', pick_files: '选择视频文件…',
+    no_files: '这个目录里没有视频文件。',
+    scan_ok: '已匹配', scan_bad: '无视频',
+    empty_head: '这门课里没有讲到这几个字的片段',
+    empty_body: '检索只比对讲师的原话和章节标题，换一种说法就未必对得上：讲师说「提交申请」，搜「提报流程」也可能是空的。去掉修饰词、只留两三个关键词再试，或者点上面的目录按章节找。',
+    screen_label: '屏幕文字（OCR）· ',
+    screen_prefix: '屏幕：', cite_void: '引用不在本次检索结果里',
+    retrieved_only: '下面是检索到的片段，请自己看：',
+    cite_bad_n: ' 处引用不在检索结果里，已标红，别信那几句。',
+    no_cites: '模型没有给出可校验的引用，回答已弃用（它引用的片段不在本次检索结果里）。',
+    fill_key: '先填 base_url / model / key。',
+    svc_ready: '本地服务已就绪：视频走 loopback',
+    err_429: '触发限流，等一会儿再试（HTTP 429）',
+    err_402: '余额不足（HTTP 402）',
+    err_401: 'API key 不对或没有权限（HTTP ',
+    err_404: '模型名或 base_url 不对（HTTP 404）',
+    err_cors: '请求被拦：该服务商不允许网页直连（CORS），或本机断网；本地 Ollama 需设 OLLAMA_ORIGINS=*',
+    err_server: '服务商侧出错（HTTP ',
+  },
+  en: {
+    title: 'Course index', course: 'Course',
+    search: 'Search the lecturer’s words or chapter titles…',
+    subs_on: 'Captions on', subs_off: 'Captions off',
+    view_transcript: 'Transcript', view_chapters: 'Chapters',
+    settings: 'Settings', settings_title: 'LLM settings', settings_head: 'LLM settings',
+    provider: 'Provider', provider_ollama: 'Local Ollama',
+    provider_custom: 'Custom (OpenAI compatible)',
+    ctx_k: 'Context chunks (k)', clear: 'Clear', test: 'Test connection',
+    cancel: 'Cancel', save: 'Save', close: 'Close', scan_head: 'Scan result',
+    ask_ph: 'Ask about this course…', ask_btn: 'Ask',
+    ask_disabled: 'No API key — search still works. Add your own key under Settings to ask questions.',
+    key_now: 'Current key: ', key_none: 'not set',
+    no_video: 'No video yet',
+    no_video_help: 'Put this page in the folder that holds the recordings, then pick that folder. The page matches videos by content (size + SHA-1 of the first and last 4 MB), not by file name.',
+    pick_dir: 'Choose video folder…', pick_files: 'Choose video files…',
+    no_files: 'No video files in that folder.',
+    scan_ok: 'matched', scan_bad: 'no video',
+    empty_head: 'Nothing in this course mentions those words',
+    empty_body: 'Search compares the lecturer’s exact words and the chapter titles, so a paraphrase can come back empty. Drop the filler words, keep two or three keywords, or pick a chapter from the contents above.',
+    screen_label: 'On screen (OCR) · ',
+    screen_prefix: 'Screen: ', cite_void: 'citation not in this result set',
+    retrieved_only: 'Here are the retrieved passages — judge for yourself:',
+    cite_bad_n: ' citation(s) are not in the retrieved set, marked in red; do not trust those lines.',
+    no_cites: 'The model produced no verifiable citation, so the answer was discarded (it cited passages outside this result set).',
+    fill_key: 'Fill in base_url / model / key first.',
+    svc_ready: 'Local service ready: video over loopback',
+    err_429: 'Rate limited, try again shortly (HTTP 429)',
+    err_402: 'Out of credit (HTTP 402)',
+    err_401: 'Wrong API key or no permission (HTTP ',
+    err_404: 'Unknown model or base_url (HTTP 404)',
+    err_cors: 'Blocked: the provider does not allow browser calls (CORS), or the machine is offline; local Ollama needs OLLAMA_ORIGINS=*',
+    err_server: 'Provider error (HTTP ',
+  }
+};
+let LANG = 'zh';
+
+function tr(key){
+  const table = I18N[LANG] || I18N.zh;
+  return (key in table) ? table[key] : (I18N.zh[key] !== undefined ? I18N.zh[key] : key);
+}
+
+function applyLang(){
+  document.documentElement.lang = (LANG === 'zh') ? 'zh-CN' : 'en';
+  document.title = tr('title');
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = tr(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-ph]').forEach(el => { el.placeholder = tr(el.dataset.i18nPh); });
+  document.querySelectorAll('[data-i18n-title]').forEach(el => { el.title = tr(el.dataset.i18nTitle); });
+  const bl = document.getElementById('blang');
+  if (bl) bl.textContent = (LANG === 'zh') ? 'EN' : '中';
+  // labels that depend on state
+  const bs = document.getElementById('bsub');
+  if (bs) bs.textContent = subsOn ? tr('subs_on') : tr('subs_off');
+  const bt = document.getElementById('btr');
+  if (bt) bt.textContent = (viewMode === 'chapters') ? tr('view_transcript') : tr('view_chapters');
+  if (typeof syncAskState === 'function') syncAskState();
+}
+
+function setLang(lang){
+  LANG = (lang === 'en') ? 'en' : 'zh';
+  applyLang();
+  const s = getSet(); s.lang = LANG; putSet(s);
+  if (cur) { const q = document.getElementById('q').value.trim();
+             q ? renderSearch(q) : renderChapters(); }
+}
+
+let cur = null, v = document.getElementById('v'), items = [], activeRow = null;
+
+// ---- subtitles & transcript ------------------------------------------------
+let subsOn = true, viewMode = 'chapters';
+
+function subAt(t){
+  if(!cur || !cur.sentences) return null;
+  const a = cur.sentences;
+  let lo = 0, hi = a.length - 1, best = null;
+  while(lo <= hi){
+    const m = (lo + hi) >> 1;
+    if(a[m][0] <= t){ best = a[m]; lo = m + 1; } else { hi = m - 1; }
+  }
+  return (best && t < best[1] + 1.5) ? best : null;
+}
+
+const FILLER = /^[嗯啊哦呃唉哎唔嗷，。、\s]{1,3}$/;
+let lastSub = '';
+
+function paintSub(t){
+  const el = document.getElementById('sub');
+  if(!subsOn){ el.classList.add('off'); el.innerHTML = ''; return; }
+  el.classList.remove('off');
+  const s = subAt(t);
+  if(!s){ el.innerHTML = lastSub ? '<span>' + lastSub + '</span>' : ''; return; }
+  if(FILLER.test(s[2]) && lastSub){ return; }   // hold the previous line
+  lastSub = esc(s[2]);
+  el.innerHTML = '<span>' + lastSub + '</span>';
+}
+
+function renderTranscript(filter){
+  const L = document.getElementById('list');
+  L.innerHTML = ''; items = []; activeRow = null;
+  const f = (filter || '').trim().toLowerCase();
+  cur.sentences.forEach((s, i)=>{
+    if(f && s[2].toLowerCase().indexOf(f) < 0) return;
+    const d = document.createElement('div');
+    d.className = 'row';
+    d.innerHTML = '<div class="t">' + mmss(s[0]) + '</div><div class="ti"><b>' +
+                  esc(s[2]) + '</b></div>';
+    d.onclick = ()=>seek(s[0] + 0.05);
+    L.appendChild(d);
+    items.push({el:d, start:s[0], end:s[1], jump:s[0], title:'', sent:i});
+  });
+  markActive();
+}
+
+function mmss(t){const m=Math.floor(t/60),s=Math.floor(t%60);return String(m).padStart(2,'0')+':'+String(s).padStart(2,'0');}
+function hms(t){const h=Math.floor(t/3600);return (h?h+':':'')+mmss(t%3600);}
+function fmtSize(n){return n>=1048576 ? (n/1048576).toFixed(0)+' MB' : Math.round(n/1024)+' KB';}
+
+function tok(s){
+  s = s.toLowerCase();
+  const out = [];
+  // ASCII runs keep their inner dots/slashes (hostnames, paths, C++/#) but the
+  // trailing punctuation must not ride along: "VPN." is not "vpn", and with it
+  // the one chunk that says VPN was unreachable — measured, the query returned a
+  // single row.
+  (s.match(/[a-z0-9_.+#\/-]+/g)||[]).forEach(raw=>{
+    const t = raw.replace(/^[._+#\/-]+/, '').replace(/[._+#\/-]+$/, '');
+    if(t) out.push(t);
+  });
+  (s.match(/[\u4e00-\u9fff]+/g)||[]).forEach(seg=>{
+    if(seg.length===1) out.push(seg);
+    else for(let i=0;i<seg.length-1;i++) out.push(seg.slice(i,i+2));
+  });
+  return out;
+}
+
+function bm25(docs){
+  const toks = docs.map(tok), df = Object.create(null), tf = [];
+  toks.forEach(d=>{const c=Object.create(null);d.forEach(t=>c[t]=(c[t]||0)+1);tf.push(c);
+    Object.keys(c).forEach(t=>df[t]=(df[t]||0)+1);});
+  const n = docs.length, avg = toks.reduce((a,d)=>a+d.length,0)/n || 1;
+  const idf = t => Math.log(1+(n-(df[t]||0)+0.5)/((df[t]||0)+0.5));
+  return q => {
+    const qt = tok(q), sc = new Array(n).fill(0);
+    for(let i=0;i<n;i++){
+      const dl = toks[i].length;
+      for(const t of qt){
+        const f = tf[i][t]; if(!f) continue;
+        sc[i] += idf(t)*f*2.2/(f+1.2*(1-0.75+0.75*dl/avg));
+      }
+    }
+    return sc;
+  };
+}
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+// "[ASR] 讲解 / [屏幕] 幻灯片文字" -> the two channels apart. They are not
+// interchangeable: the screen can sit on a slide nobody is talking about.
+// The row used to show the first 90 characters of the transcript, so a hit whose
+// matched word came later looked unrelated: searching 「下拉框的选项从哪里来」
+// surfaced a row that began "型的这个配置我们回到刚才列模型的地方…". Centre the
+// window on the first token that actually matched.
+function snippet(text, q, width){
+  width = width || 90;
+  const lower = text.toLowerCase();
+  let pos = -1;
+  for(const t of new Set(tok(q || ''))){
+    const i = lower.indexOf(t);
+    if(i >= 0 && (pos < 0 || i < pos)) pos = i;
+  }
+  if(pos < 0 || pos + 20 < width) return text.slice(0, width);
+  const from = Math.max(0, pos - Math.floor(width / 3));
+  return (from > 0 ? '…' : '') + text.slice(from, from + width) + '…';
+}
+
+function splitText(t){
+  const a = /\[ASR\]\s*([\s\S]*?)(?=\[屏幕\]|$)/.exec(t) || [];
+  const b = /\[屏幕\]\s*([\s\S]*)$/.exec(t) || [];
+  const clean = x => (x || '').replace(/\s+/g,' ').trim();
+  return {asr: clean(a[1]), scr: clean(b[1])};
+}
+function plain(t){return t.replace(/\[(ASR|屏幕)\]\s*/g,'').replace(/\s+/g,' ').trim();}
+
+function splitChunk(t){
+  const i = t.indexOf('[屏幕]');
+  const asr = (i < 0 ? t : t.slice(0, i)).replace(/^\[ASR\]\s*/, '').trim();
+  const screen = i < 0 ? '' : t.slice(i + 4).trim();
+  return {asr, screen};
+}
+
+function captionHTML(label, t, chunkText){
+  const p = splitChunk(chunkText || '');
+  let h = '<b>' + esc(label) + ' · ' + mmss(t) + '</b>';
+  if(p.asr) h += '<br>' + esc(p.asr);
+  if(p.screen) h += '<div class="scr">' + tr('screen_label') + esc(p.screen.slice(0, 90)) + '</div>';
+  return h;
+}
+
+function seek(t){
+  if(!isFinite(t)) return;
+  v.currentTime = Math.max(0, t);
+  v.play().catch(()=>{});
+}
+
+function renderChapters(){
+  const L = document.getElementById('list');
+  L.innerHTML = '';
+  items = [];
+  cur.chapters.forEach(c=>{
+    const d = document.createElement('div');
+    d.className = 'row' + (c.q ? ' q' : ''); d.dataset.jump = c.jump; d.dataset.start = c.start;
+    d.innerHTML = '<div class="t">'+mmss(c.jump)+'</div><div class="ti"><b>'+esc(c.title)+
+      '</b><span>'+esc(c.summary||'')+'</span></div>';
+    d.onclick = ()=>seek(c.jump);
+    L.appendChild(d);
+    items.push({el:d, start:c.start, end:c.end, jump:c.jump, title:c.title});
+    (c.sub||[]).forEach(s=>{
+      const sd = document.createElement('div');
+      sd.className = 'sub'; sd.dataset.jump = s.jump;
+      sd.textContent = '↳ ' + mmss(s.jump) + (s.title? '  '+s.title : '');
+      sd.onclick = e=>{e.stopPropagation(); seek(s.jump);};
+      L.appendChild(sd);
+    });
+  });
+  markActive();
+}
+
+function markActive(){
+  // +60ms: seeking lands a hair before a boundary (504.86 vs 504.87) and the
+  // playhead would otherwise be attributed to the previous chunk
+  const t = (v.currentTime || 0) + 0.06;
+  let hit = null;
+  items.forEach(it=>{
+    const on = t >= it.start && t < it.end;
+    it.el.classList.toggle('on', on);
+    if(on) hit = it;
+  });
+  if(hit !== activeRow){
+    activeRow = hit;
+    if(hit) hit.el.scrollIntoView({block:'nearest'});
+  }
+  paintSub(t);
+
+  if(viewMode === 'transcript'){
+    let curIt = null;
+    items.forEach(it=>{
+      const on = t >= it.start && t < it.end;
+      it.el.classList.toggle('on', on);
+      if(on) curIt = it;
+    });
+    if(curIt){
+      activeRow = curIt;
+      curIt.el.scrollIntoView({block:'nearest'});
+      const label = cur.chapters.find(x => t >= x.start - 0.05 && t < x.end);
+      const cap = document.getElementById('cap');
+      cap.textContent = (label ? label.title + ' · ' : '') + mmss(t) + '  ' +
+                        (cur.sentences[curIt.sent] ? cur.sentences[curIt.sent][2] : '');
+    }
+    return;
+  }
+
+  // caption: which chunk covers the playhead
+  const c = cur.chunks.find(c=>t >= c.start && t < c.end);
+  const cap = document.getElementById('cap');
+  // label with the chapter the playhead is in: a chunk can straddle two, and
+  // while searching the visible rows may not include the playing chunk
+  const chapNow = cur.chapters.find(x => t >= x.start - 0.05 && t < x.end);
+  const quiet = !!(chapNow && chapNow.q);
+  // the suffix belongs to the key itself: comparing a suffixed cache against an
+  // unsuffixed key re-rendered the caption on every timeupdate
+  const key = cur.run_id + ':' + (c ? c.i : 'gap') + (quiet ? ':q' : '');
+  if(cap.dataset.k === key) return;
+  cap.dataset.k = key;
+  if(!c){
+    // no chunk covers this second (a silent intro, a gap between units): say so
+    // instead of leaving the previous slide's caption on screen
+    if(!chapNow) return;
+    cap.innerHTML = '<b>' + esc(chapNow.title) + ' · ' + mmss(t) + '</b>' +
+      '<div class="scr">' + esc(chapNow.summary || '这一段没有字幕') + '</div>';
+    return;
+  }
+  if(quiet){
+    // The chunk under the playhead was cut from the previous slide, so its text
+    // describes the wrong minute. Show what was actually measured instead.
+    cap.innerHTML = '<b>' + esc(chapNow.title) + ' · ' + mmss(t) + '</b>' +
+      '<div class="scr">' + esc(chapNow.summary || '这段没有讲解') + '</div>';
+    return;
+  }
+  const label = hit ? hit.title : (chapNow ? chapNow.title : '');
+  cap.innerHTML = captionHTML(label, t, c.t);
+}
+
+function renderSearch(q){
+  const L = document.getElementById('list');
+  L.innerHTML = '';
+  if(!q.trim()){ renderChapters(); return; }
+  const sc = searchScores(q);
+  if(!sc){ renderChapters(); return; }
+  const idx = sc.map((s,i)=>[s,i]).filter(p=>p[0]>0)
+                .sort((a,b)=>b[0]-a[0]).slice(0,12);
+  if(!idx.length){ renderNoHit(q); return; }
+  items = []; activeRow = null;
+  idx.forEach(([s,i])=>{
+    const c = cur.chunks[i];
+    const chap = cur.chapters.find(x=>x.id===c.ch);
+    const d = document.createElement('div');
+    d.className = 'row';
+    // The bold line is what the lecturer said, because that is what matched. The
+    // screen text stays available but dimmed underneath: on a slide that did not
+    // change, it describes the previous topic (the "hit the Wiki chapter, shows
+    // the GitLab slide" complaint).
+    const pt = splitText(c.t);
+    const main = pt.asr || pt.scr;
+    d.innerHTML = '<div class="t">'+mmss(c.jump)+'</div><div class="ti"><b>'+esc(snippet(main, q, 90))+
+      '</b><span>'+esc(chap?chap.title:'')+' · '+c.m+'</span>'+
+      (pt.asr && pt.scr ? '<span class="scr2">' + tr('screen_prefix')+esc(pt.scr.slice(0,70))+'</span>' : '')+'</div>';
+    d.onclick = ()=>seek(c.jump);
+    L.appendChild(d);
+    items.push({el:d, start:c.start, end:c.end, jump:c.jump, title:c.chapter_title||''});
+  });
+  markActive();
+}
+
+// Zero rows means no bigram of the query occurs anywhere in the course, so there
+// is nothing to relax into: dropping filler words only removes tokens and OR can
+// still only shrink the match set, and the chapter-title channel has already
+// promoted every chunk whose chapter title shares a bigram (that is part of the
+// fusion mask), so title-near fallbacks are unreachable by construction. What is
+// left is to say why — the package matches the lecturer's exact words.
+function renderNoHit(q){
+  const L = document.getElementById('list');
+  L.innerHTML = ''; items = []; activeRow = null;
+  const box = document.createElement('div');
+  box.className = 'nohit';
+  box.innerHTML = '<b>' + tr('empty_head') + '「' + esc(q.trim().slice(0, 20)) + '</b>' +
+    '<span>' + tr('empty_body') + '</span>';
+  L.appendChild(box);
+  markActive();
+}
+
+// ---- video source: local path, local service, or a picked file -------------
+let svc = false;
+const ASK_API = 'http://127.0.0.1:8765';   // optional: scripts/serve.py, video over loopback
+
+function srcOf(c){
+  if(svc) return ASK_API + '/video?run=' + encodeURIComponent(c.run_id);
+  if(c._url) return c._url;
+  return c.src || null;
+}
+
+function metaOf(c){
+  const bits = [];
+  bits.push(c._fname || c.file || '无文件');
+  bits.push(Math.round(c.duration/60) + ' min');
+  if(c.bytes) bits.push(fmtSize(c.bytes));
+  if(c._url) bits.push('<span class="ok">已匹配</span>');
+  else if(svc) bits.push('<span class="warn">本地服务</span>');
+  else if(c.src) bits.push('<span class="warn">本地路径</span>');
+  else bits.push('<span class="bad">无视频</span>');
+  return bits.join(' · ');
+}
+
+function refreshPane(){
+  const anyVideo = DATA.some(c => srcOf(c) && (c._url || c.src));
+  const loaded = cur && srcOf(cur);
+  document.getElementById('v').hidden = !loaded;
+  document.getElementById('vpane').style.display = loaded ? 'none' : 'flex';
+  if(!loaded){
+    const matched = DATA.filter(c => c._url).length;
+    document.getElementById('vstat').innerHTML = matched
+      ? '已匹配 ' + matched + ' 个课程的视频，当前课程没有对应文件。'
+      : (anyVideo ? '当前课程没有对应文件。' : '选了目录后会按内容自动匹配，匹配上就出现播放器。');
+  }
+  return loaded;
+}
+
+function load(i){
+  cur = DATA[i];
+  cur._bm25 = bm25(cur.chunks.map(c=>{
+    const spoken = c.t.replace(/^\[ASR\]\s*/,'').split('[屏幕]')[0].trim();
+    return spoken || c.t.replace(/^\[屏幕\]\s*/,'');
+  }));
+  // Second retrieval channel: the chapter titles and summaries already inline.
+  // Measured on 14 paraphrase questions (2026-11-01): the right chunk sat first
+  // for 2/14 with chunk BM25 alone and 6/14 once the chapter channel is fused in
+  // — most of what a dense channel bought (9/14) without shipping any vectors.
+  cur._cbm = bm25(cur.chapters.map(c => (c.title || '') + ' ' + (c.summary || '')));
+  cur._chapIndex = new Map(cur.chapters.map((c, i) => [c.id, i]));
+  document.getElementById('cname').textContent = cur.title + '  ·  ' + Math.round(cur.duration/60) + ' min';
+  document.getElementById('cmeta').innerHTML = metaOf(cur);
+  const src = srcOf(cur);
+  if(src){ v.src = src; v.load(); }
+  else { v.removeAttribute('src'); }
+  refreshPane();
+  document.getElementById('q').value = '';
+  viewMode = 'chapters';
+  lastSub = '';
+  document.getElementById('sub').innerHTML = '';
+  const btr = document.getElementById('btr');
+  btr.classList.remove('on');
+  btr.textContent = (viewMode === 'chapters') ? tr('view_transcript') : tr('view_chapters');
+  renderChapters();
+}
+
+const sel = document.getElementById('sel');
+function fillSel(){
+  const keep = sel.value;
+  sel.innerHTML = '';
+  DATA.forEach((c,i)=>{
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = c.title + (c._fname || c.file ? ' — ' + (c._fname || c.file)
+                   : (c.src ? '' : ' — 未加载'));
+    sel.appendChild(o);
+  });
+  sel.hidden = DATA.length < 2;
+  if(keep) sel.value = keep;
+}
+fillSel();
+sel.onchange = ()=>load(+sel.value);
+
+document.getElementById('q').oninput = e=>{
+  if(viewMode === 'transcript') renderTranscript(e.target.value);
+  else renderSearch(e.target.value);
+};
+
+document.getElementById('bsub').onclick = ()=>{
+  subsOn = !subsOn;
+  const b = document.getElementById('bsub');
+  b.classList.toggle('on', subsOn);
+  b.textContent = subsOn ? tr('subs_on') : tr('subs_off');
+  paintSub((v.currentTime || 0) + 0.06);
+};
+
+document.getElementById('btr').onclick = ()=>{
+  const b = document.getElementById('btr');
+  if(viewMode === 'transcript'){
+    viewMode = 'chapters'; b.classList.remove('on'); b.textContent = tr('view_transcript');
+    document.getElementById('q').value = '';
+    renderChapters();
+  } else {
+    viewMode = 'transcript'; b.classList.add('on'); b.textContent = '转写 ✓';
+    document.getElementById('q').value = '';
+    renderTranscript('');
+    const t = (v.currentTime || 0) + 0.06;
+    const it = items.find(x => t >= x.start && t < x.end);
+    if(it) it.el.scrollIntoView({block:'center'});
+  }
+};
+
+v.addEventListener('timeupdate', ()=>{ if(cur) markActive(); });
+v.addEventListener('loadedmetadata', ()=>{
+  if(cur && Math.abs(v.duration - cur.duration) > 2 && !v.__warned){
+    v.__warned = true;
+    const m = document.getElementById('cmeta');
+    m.innerHTML = metaOf(cur) + ' · <span class="bad">时长不符 ' + v.duration.toFixed(0) + 's</span>';
+  }
+  const t = parseFloat(new URLSearchParams(location.search).get('t'));
+  if(isFinite(t) && t>0) v.currentTime = t;
+});
+
+document.addEventListener('keydown', e=>{
+  if(e.target.tagName === 'INPUT'){ if(e.key==='Escape'){ e.target.value=''; renderChapters(); e.target.blur(); } return; }
+  if(e.key === '/'){ e.preventDefault(); document.getElementById('q').focus(); }
+  if(e.key === 'c'){ document.getElementById('bsub').onclick(); }
+  if(e.key === 'j' || e.key === 'k'){
+    if(!cur) return;
+    const t = v.currentTime; const list = cur.chapters;
+    let n = e.key === 'j' ? list.find(c=>c.start > t + 0.5) : [...list].reverse().find(c=>c.start < t - 1.5);
+    if(n) seek(n.jump);
+  }
+});
+
+// ---- content addressing: pick a folder, bind files to courses --------------
+// Fingerprint MUST match scripts/viewer.py fingerprint(): size + sha1(head||tail),
+// 4MB each, whole file when it is that small.
+const HASH_CHUNK = 4 * 1024 * 1024;
+const VID_EXT = /\.(mp4|m4v|mov|mkv|webm)$/i;
+
+async function sha1Of(file){
+  let buf;
+  if(file.size <= HASH_CHUNK){
+    buf = await file.arrayBuffer();
+  } else {
+    const head = new Uint8Array(await file.slice(0, HASH_CHUNK).arrayBuffer());
+    const tail = new Uint8Array(await file.slice(file.size - HASH_CHUNK).arrayBuffer());
+    const both = new Uint8Array(head.length + tail.length);
+    both.set(head, 0); both.set(tail, head.length);
+    buf = both;
+  }
+  const d = await crypto.subtle.digest('SHA-1', buf);
+  return Array.from(new Uint8Array(d)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+const scanRows = [];
+function renderScan(){
+  const box = document.getElementById('scanbody');
+  box.innerHTML = '';
+  if(!scanRows.length){ box.innerHTML = '<div class="note">这个目录里没有视频文件。</div>'; return; }
+  scanRows.forEach(r=>{
+    const d = document.createElement('div');
+    d.className = 'sr';
+    d.innerHTML = '<span class="st ' + r.kind + '">' + r.tag + '</span>' +
+                  '<span class="nm" title="' + esc(r.name) + '">' + esc(r.name) + '</span>' +
+                  '<span class="rz">' + esc(r.note) + '</span>';
+    box.appendChild(d);
+  });
+}
+
+async function scanFiles(list){
+  const files = Array.from(list).filter(f => VID_EXT.test(f.name));
+  scanRows.length = 0;
+  const matched = [];
+  const startsMs = performance.now();
+  for(const f of files){
+    // size rules out almost everything before paying for a hash
+    const cands = DATA.filter(c => c.bytes === f.size && c.sha1);
+    if(!cands.length){
+      scanRows.push({kind:'skip', tag:'跳过', name:f.name, note:fmtSize(f.size)});
+      continue;
+    }
+    let h;
+    try { h = await sha1Of(f); }
+    catch(e){ scanRows.push({kind:'bad', tag:'读失败', name:f.name, note:e.message}); continue; }
+    const hit = cands.find(c => c.sha1 === h && !c._url);
+    if(hit){
+      hit._url = URL.createObjectURL(f);
+      hit._fname = f.name;
+      hit._fsize = f.size;
+      matched.push(hit);
+      scanRows.push({kind:'ok', tag:'匹配', name:f.name, note:hit.title});
+    } else if(cands.some(c => c.sha1 === h && c._url)){
+      scanRows.push({kind:'skip', tag:'重复', name:f.name, note:'同一课程的另一份拷贝'});
+    } else {
+      scanRows.push({kind:'warn', tag:'同名不同', name:f.name, note:'大小对得上，内容不同'});
+    }
+  }
+  const missing = DATA.filter(c => !c._url);
+  if(missing.length){
+    scanRows.push({kind:'warn', tag:'缺视频', name:missing.map(c=>c.file||c.run_id).join(', '), note:'索引里有，这个目录没有'});
+  }
+  const dt = ((performance.now() - startsMs)/1000).toFixed(1);
+  document.getElementById('vstat').textContent = '扫描 ' + files.length + ' 个文件，耗时 ' + dt + 's，匹配 ' + matched.length + ' 门课';
+  fillSel();
+  const curIdx = cur ? DATA.indexOf(cur) : -1;
+  if(curIdx >= 0 && cur._url){
+    const t = v.currentTime || 0;
+    load(curIdx);
+    if(t > 0) v.addEventListener('loadedmetadata', ()=>v.currentTime = t, {once:true});
+  } else if(matched.length){
+    load(DATA.indexOf(matched[0]));
+  } else {
+    refreshPane();
+  }
+  renderScan();
+  document.getElementById('scandlg').showModal();
+}
+
+const fdir = document.getElementById('fdir'), ffiles = document.getElementById('ffiles');
+// Clear a picker only *before* opening it (so choosing the same folder again
+// still fires change). Clearing it after a scan releases the browser-side file
+// handle the blob URLs point at, and media loading then stalls at readyState 0
+// while FileReader keeps working — a silent, very confusing failure.
+document.getElementById('bdir').onclick = ()=>{ fdir.value = ''; fdir.click(); };
+document.getElementById('bfiles').onclick = ()=>{ ffiles.value = ''; ffiles.click(); };
+fdir.onchange = ()=>{ if(fdir.files.length) scanFiles(fdir.files); };
+ffiles.onchange = ()=>{ if(ffiles.files.length) scanFiles(ffiles.files); };
+document.getElementById('scanok').onclick = ()=>document.getElementById('scandlg').close();
+
+// ---- settings (provider + key), stored in localStorage ---------------------
+const SET_KEY = 'videocourserag.settings.v1';
+const PRESETS = {
+  deepseek:  {base_url:'https://api.deepseek.com/v1', model:'deepseek-chat'},
+  openai:    {base_url:'https://api.openai.com/v1',   model:'gpt-4o-mini'},
+  openrouter:{base_url:'https://openrouter.ai/api/v1',model:'deepseek/deepseek-chat'},
+  ollama:    {base_url:'http://127.0.0.1:11434/v1',   model:'qwen3:8b'},
+  custom:    {base_url:'', model:''}
+};
+const DEF = {v:1, lang:'', preset:'deepseek', base_url:PRESETS.deepseek.base_url,
+             model:PRESETS.deepseek.model, api_key:'', k:6, max_tokens:500};
+
+function getSet(){
+  let o = {};
+  try { o = JSON.parse(localStorage.getItem(SET_KEY) || '{}') || {}; } catch(e){ o = {}; }
+  const s = Object.assign({}, DEF, o);
+  if(!PRESETS[s.preset]) s.preset = 'custom';
+  s.k = Math.min(8, Math.max(1, parseInt(s.k, 10) || 6));
+  s.max_tokens = Math.min(2000, Math.max(64, parseInt(s.max_tokens, 10) || 500));
+  s.api_key = String(s.api_key || '').trim();
+  s.base_url = String(s.base_url || '').trim().replace(/\/+$/, '');
+  s.model = String(s.model || '').trim();
+  return s;
+}
+function putSet(s){ try { localStorage.setItem(SET_KEY, JSON.stringify(s)); } catch(e){ throw e; } }
+function maskKey(k){ return k.length <= 8 ? '***' : k.slice(0,3) + '…' + k.slice(-4); }
+
+const aq = document.getElementById('aq'), abtn = document.getElementById('abtn'),
+      astat = document.getElementById('astat');
+
+function astatSet(msg, cls){
+  astat.textContent = msg || '';
+  astat.className = cls || '';
+}
+
+function bootLang(){
+  const s = getSet();
+  LANG = s.lang || ((navigator.language || 'zh').toLowerCase().startsWith('zh') ? 'zh' : 'en');
+  applyLang();
+}
+
+function syncAskState(){
+  const s = getSet();
+  const ok = !!s.api_key && !!s.base_url && !!s.model;
+  aq.disabled = !ok; abtn.disabled = !ok;
+  if(!ok){
+    astatSet(tr('ask_disabled'), '');
+  } else {
+    astatSet('已配置 ' + s.model + ' · key ' + maskKey(s.api_key), '');
+  }
+}
+
+const dlg = document.getElementById('dlg');
+const ssel = document.getElementById('ssel'), surl = document.getElementById('surl'),
+      smodel = document.getElementById('smodel'), skey = document.getElementById('skey'),
+      sk = document.getElementById('sk'), smt = document.getElementById('smt'),
+      sstat = document.getElementById('sstat');
+
+function dlgFill(){
+  const s = getSet();
+  ssel.value = s.preset;
+  surl.value = s.base_url;
+  smodel.value = s.model;
+  skey.value = s.api_key;
+  sk.value = s.k;
+  smt.value = s.max_tokens;
+  sstat.textContent = s.api_key ? '当前 key：' + maskKey(s.api_key) : '还没有配置 key。';
+}
+document.getElementById('bset').onclick = ()=>{ dlgFill(); dlg.showModal(); };
+document.getElementById('blang').onclick = ()=>{ setLang(LANG === 'zh' ? 'en' : 'zh'); };
+document.getElementById('scancel').onclick = ()=>dlg.close();
+ssel.onchange = ()=>{
+  const p = PRESETS[ssel.value];
+  if(p){ surl.value = p.base_url; smodel.value = p.model; }
+};
+document.getElementById('ssave').onclick = ()=>{
+  const s = getSet();
+  const next = Object.assign({}, s, {
+    v: 1, preset: ssel.value, base_url: surl.value.trim().replace(/\/+$/,''),
+    model: smodel.value.trim(), api_key: skey.value.trim(),
+    k: parseInt(sk.value, 10) || 6, max_tokens: parseInt(smt.value, 10) || 500
+  });
+  try { putSet(next); } catch(e){ sstat.textContent = '保存失败：' + e.message; return; }
+  dlg.close();
+  astatSet('', '');
+  syncAskState();
+};
+document.getElementById('sclear').onclick = ()=>{
+  try { localStorage.removeItem(SET_KEY); } catch(e){}
+  dlgFill();
+  astatSet('', '');
+  syncAskState();
+  sstat.textContent = '已清除本机保存的配置。';
+};
+
+// ---- the LLM call ----------------------------------------------------------
+function errText(e, status){
+  if(status === 401 || status === 403) return 'API key 不对或没有权限（HTTP ' + status + '）';
+  if(status === 402) return '余额不足（HTTP 402）';
+  if(status === 404) return '模型名或 base_url 不对（HTTP 404）';
+  if(status === 429) return '触发限流，等一会儿再试（HTTP 429）';
+  if(status >= 500) return '服务商侧出错（HTTP ' + status + '）';
+  if(status) return 'HTTP ' + status;
+  if(e && (e.name === 'TypeError')) return '请求被拦：该服务商不允许网页直连（CORS），或本机断网；本地 Ollama 需设 OLLAMA_ORIGINS=*';
+  return (e && e.message) || '未知错误';
+}
+
+async function callLLM(messages, maxTokens){
+  const s = getSet();
+  if(!s.api_key) throw new Error('nokey');
+  let r;
+  try {
+    r = await fetch(s.base_url + '/chat/completions', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer ' + s.api_key},
+      body: JSON.stringify({model:s.model, messages, max_tokens:maxTokens, temperature:0.2})
+    });
+  } catch(e){ throw new Error(errText(e)); }
+  if(!r.ok){
+    let detail = '';
+    try { const j = await r.json(); detail = (j.error && (j.error.message || j.error.type)) || ''; } catch(e){}
+    throw new Error(errText(null, r.status) + (detail ? ' — ' + detail : ''));
+  }
+  const j = await r.json();
+  const txt = j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content;
+  if(!txt) throw new Error('服务商返回了空内容');
+  return {text: txt, usage: j.usage || null};
+}
+
+document.getElementById('stest').onclick = async ()=>{
+  const s = Object.assign(getSet(), {
+    preset: ssel.value, base_url: surl.value.trim().replace(/\/+$/,''),
+    model: smodel.value.trim(), api_key: skey.value.trim()
+  });
+  if(!s.api_key || !s.base_url || !s.model){ sstat.textContent = '先填 base_url / model / key。'; return; }
+  sstat.textContent = '测试中…';
+  try {
+    // bypass getSet(): the dialog may hold values not saved yet
+    let r;
+    try {
+      r = await fetch(s.base_url + '/chat/completions', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer ' + s.api_key},
+        body: JSON.stringify({model:s.model, messages:[{role:'user',content:'ping'}], max_tokens:1})
+      });
+    } catch(e){ throw new Error(errText(e)); }
+    if(!r.ok){
+      let detail = '';
+      try { const j = await r.json(); detail = (j.error && (j.error.message || j.error.type)) || ''; } catch(e){}
+      throw new Error(errText(null, r.status) + (detail ? ' — ' + detail : ''));
+    }
+    sstat.textContent = '连接正常（' + s.model + '）。记得点「保存」。';
+  } catch(e){
+    sstat.textContent = '失败：' + e.message;
+  }
+};
+
+// ---- ask: local retrieval, model cites chunk ids, page maps ids to times ---
+const SYS = [
+  '你是课程录像的检索助手。只根据下面给出的片段回答。',
+  '规则：每条结论后用 [c编号] 标注来源，编号必须是片段里给出的；',
+  '片段里没有依据就回答「这段课程里没有讲」，不要猜；',
+  '不要输出任何时间或秒数，时间由页面显示；不要编造片段编号。'
+].join('');
+
+function rankOf(sc){
+  const r = new Array(sc.length).fill(0);
+  sc.map((v,i)=>i).sort((a,b)=>sc[b]-sc[a]).forEach((i,pos)=>{ r[i] = pos + 1; });
+  return r;
+}
+
+// Reciprocal-rank fusion of chunk BM25 and chapter-title BM25, the same rule as
+// scripts/search.py (k=60, chapter weight 0.6), then the measured down-weight for
+// chunks that carry no speech. A chunk is only a candidate when the query matched
+// either its own text or its chapter's title: RRF gives every chunk a positive
+// score, so without this mask a nonsense query would still list twelve rows.
+function searchScores(q){
+  const sc = cur._bm25 ? cur._bm25(q) : null;
+  if(!sc) return null;
+  const rs = rankOf(sc);
+  let cr = null, cs = null;
+  if(cur._cbm && cur._chapIndex){
+    cs = cur._cbm(q);
+    const crank = rankOf(cs);
+    cr = cur.chunks.map(c => {
+      const ci = cur._chapIndex.get(c.ch);
+      return ci === undefined ? cs.length + 1 : crank[ci];
+    });
+  }
+  const out = new Array(sc.length);
+  for(let i = 0; i < sc.length; i++){
+    const matched = sc[i] > 0 || (cs && (cs[cur._chapIndex.get(cur.chunks[i].ch)] || 0) > 0);
+    if(!matched){ out[i] = 0; continue; }
+    const rrf = 1 / (60 + rs[i]) + (cr ? 0.6 / (60 + cr[i]) : 0);
+    out[i] = rrf * (cur.chunks[i].n ? 1 : 0.6);
+  }
+  return out;
+}
+
+function retrieval(q, k){
+  const sc = searchScores(q);
+  if(!sc) return [];
+  return sc.map((s,i)=>[s,i]).filter(p=>p[0] > 0)
+           .sort((a,b)=>b[0]-a[0]).slice(0, k).map(p=>p[1]);
+}
+
+function buildMessages(q, idx){
+  const ctx = idx.map(i=>'[c' + i + '] ' + plain(cur.chunks[i].t).slice(0, 700)).join('\n\n');
+  return [
+    {role:'system', content:SYS},
+    {role:'user', content:'片段：\n' + ctx + '\n\n问题：' + q}
+  ];
+}
+
+function renderAnswer(text, idx){
+  const kids = new Set(idx);
+  const all = [...new Set((text.match(/\[c(\d+)\]/g) || [])
+                 .map(m=>parseInt(/(\d+)/.exec(m)[1], 10)))];
+  const cites = all.filter(i=>kids.has(i));
+  const L = document.getElementById('list');
+  L.innerHTML = '';
+  items = []; activeRow = null;
+
+  if(!cites.length){
+    // Nothing the model said is traceable to the context we gave it: drop the
+    // answer rather than show a confident claim with no verifiable source.
+    const box = document.createElement('div');
+    box.className = 'ans';
+    box.innerHTML = '<div class="note">模型没有给出可校验的引用，回答已弃用（它引用的片段不在本次检索结果里）。' +
+                    '下面是检索到的片段，请自己看：</div>';
+    L.appendChild(box);
+  } else {
+    let voided = 0;
+    const html = esc(text).replace(/\[c(\d+)\]/g, (m, n)=>{
+      const i = parseInt(n, 10);
+      if(!kids.has(i)){ voided++; return '<a class="cite void" title="引用不在本次检索结果里">' + m + '</a>'; }
+      return '<a class="cite" data-i="' + i + '" title="' + esc(plain(cur.chunks[i].t).slice(0,60)) + '">' +
+             mmss(cur.chunks[i].jump) + '</a>';
+    });
+    const box = document.createElement('div');
+    box.className = 'ans';
+    box.innerHTML = html + (voided
+      ? '<div class="note">' + voided + ' 处引用不在检索结果里，已标红，别信那几句。</div>' : '');
+    L.appendChild(box);
+    box.querySelectorAll('a.cite[data-i]').forEach(a=>{
+      a.onclick = ()=>seek(cur.chunks[+a.dataset.i].jump);
+    });
+  }
+
+  const rows = cites.length ? cites : idx;
+  rows.forEach(i=>{
+    const c = cur.chunks[i];
+    const chap = cur.chapters.find(x=>x.id===c.ch);
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = '<div class="t">' + mmss(c.jump) + '</div><div class="ti"><b>' +
+      esc(chap ? chap.title : '') + '</b><span>' + esc(plain(c.t).slice(0, 80)) + '</span></div>';
+    row.onclick = ()=>seek(c.jump);
+    L.appendChild(row);
+    items.push({el:row, start:c.start, end:c.end, jump:c.jump, title:chap ? chap.title : ''});
+  });
+  markActive();
+}
+
+let asking = false;
+async function askAI(){
+  const q = aq.value.trim();
+  if(!q || !cur || asking) return;
+  const s = getSet();
+  if(!s.api_key){ syncAskState(); return; }
+  const idx = retrieval(q, s.k);
+  if(!idx.length){ astatSet('检索没有命中任何片段 —— 换几个关键词试试（提问只能用片段的原话做依据）。', 'warn'); return; }
+  asking = true;
+  abtn.disabled = true;
+  astatSet('检索到 ' + idx.length + ' 段，正在生成…');
+  try {
+    const r = await callLLM(buildMessages(q, idx), s.max_tokens);
+    const tok = r.usage ? (r.usage.total_tokens + ' tokens · ') : '';
+    astatSet(tok + '引用 ' + idx.length + ' 段候选', '');
+    renderAnswer(r.text, idx);
+  } catch(e){
+    if(e.message === 'nokey'){ syncAskState(); }
+    else astatSet('出错：' + e.message, 'bad');
+  } finally {
+    asking = false;
+    abtn.disabled = false;
+  }
+}
+abtn.onclick = askAI;
+aq.addEventListener('keydown', e=>{ if(e.key === 'Enter') askAI(); });
+
+// ---- boot ------------------------------------------------------------------
+const SVC_PROBE = __SVC_PROBE__;   // packaged builds never probe a dev server
+bootLang();
+syncAskState();
+load(0);
+if(SVC_PROBE){
+  fetch(ASK_API + '/health').then(r=>r.json()).then(d=>{
+    if(d && d.ok){
+      svc = true;
+      if(cur) load(DATA.indexOf(cur));
+      if(!getSet().api_key) astatSet(tr('svc_ready'), '');
+    }
+  }).catch(()=>{});
+}

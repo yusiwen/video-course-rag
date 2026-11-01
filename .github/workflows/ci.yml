@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    # The OCR step links Apple's Vision framework through swiftc, so the build
+    # host has to be macOS. Everything else (tests, the leak scan, the package
+    # build) runs anywhere Python 3.10+ does.
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: no recorded material in the tree
+        run: python3 tools/check_no_course_data.py
+      - name: tests
+        run: python3 tests/run_all.py -v
+      - name: build the OCR helper
+        run: swiftc -O native/ocr/ocr.swift -o native/ocr/ocr
