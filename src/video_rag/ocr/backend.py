@@ -24,14 +24,23 @@ def helper() -> str:
 
 
 def read(png: str, min_conf: float = 0.25) -> list:
-    """OCR one image; returns [] when the helper fails rather than raising."""
+    """OCR one image.
+
+    Failures raise: swallowing them turns an OCR outage into a silently
+    different segmentation, which looks like a normal run but is wrong.
+    """
     import json
 
-    out = subprocess.run([helper(), str(png), str(min_conf)],
+    path = Path(png)
+    if not path.exists():
+        raise RuntimeError(f"OCR: no such image {path}")
+    out = subprocess.run([helper(), str(path), str(min_conf)],
                          capture_output=True, text=True)
     if out.returncode != 0:
-        return []
+        raise RuntimeError(f"OCR failed on {path} (exit {out.returncode}): "
+                           f"{out.stderr.strip()[:300]}")
     try:
         return json.loads(out.stdout or "[]")
-    except ValueError:
-        return []
+    except ValueError as e:
+        raise RuntimeError(f"OCR returned unparseable output for {path}: "
+                           f"{out.stdout[:200]!r}") from e
