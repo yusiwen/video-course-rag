@@ -185,7 +185,10 @@ def calibrate(run_id, per_mode=24, recalibrate=False):
     cache = {}
     if os.path.exists(cache_path) and not recalibrate:
         try:
-            cache = json.load(open(cache_path))
+            # A frame with no text is a frame whose OCR failed, not a frame that
+            # was empty. Keeping those entries would freeze one broken run into
+            # every later calibration, so they are treated as misses.
+            cache = {k: v for k, v in json.load(open(cache_path)).items() if v}
         except Exception:
             cache = {}
 
@@ -292,7 +295,7 @@ def calibrate(run_id, per_mode=24, recalibrate=False):
 
     out = str(_run(run_id).profile)
     json.dump(profile, open(out, "w"), ensure_ascii=False, indent=1)
-    json.dump(cache, open(cache_path, "w"))
+    json.dump({k: v for k, v in cache.items() if v}, open(cache_path, "w"))
 
     lines = [f"# 标定报告 · {run_id}", "",
              f"- 视频 {profile['video']}", f"- 时长 {st['duration'] / 60:.0f} 分钟",
