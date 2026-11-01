@@ -88,7 +88,7 @@ def test_empty_titles_are_not_duplicates():
 
 def test_unstable_reading_is_a_header():
     """Four OCR readings of one name over 12 chapters is a header, not a topic."""
-    names = ["ACME开放服务云平台", "SACME开放服务云平台", "3ACME开放服务云平台"]
+    names = ["ACME 平台名称", "SACME 平台名称", "3ACME 平台名称"]
     states = [unit(i, i * 120.0, (i + 1) * 120.0, "browser", names[i % 3])
               for i in range(12)]
     ch = run(states, {"modes": {"browser": {"band": {"y": 0.8, "y_range": [0.76, 0.84],
@@ -99,9 +99,9 @@ def test_unstable_reading_is_a_header():
 
 def test_distinct_titles_on_one_theme_are_kept():
     """Three real chapters sharing a prefix must survive the variant rule."""
-    names = ["服务管理-自定义通用服务-服务代码书写",
-             "服务管理-自定义通用服务-服务注册",
-             "服务管理-自定义通用服务-表单配置服务"]
+    names = ["数据管理-自定义数据模型-数据模型编辑",
+             "数据管理-自定义数据模型-数据模型注册",
+             "数据管理-自定义数据模型-数据校验规则"]
     states = [unit(i, i * 120.0, (i + 1) * 120.0, "browser", names[i % 3])
               for i in range(9)]
     ch = run(states, {"modes": {"browser": {"band": {"y": 0.8, "y_range": [0.76, 0.84],

@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 from video_rag.paths import all_runs, run as _run  # noqa: E402
 
-BAD_TITLE = re.compile(r"^(未登录|分享|登录|PLEASE READ|扫码登录)$", re.I)
+BAD_TITLE = re.compile(r"^(未登录|分享|登录|PLEASE READ|批量删除)$", re.I)
 NEUTRAL = re.compile(r"^(幻灯片|浏览器操作|桌面操作|窗口操作|片段)（.+）$")
 SILENCE = re.compile(r"^(休息（无内容|操作演示（无讲解)")
 # The two kinds have different thresholds on purpose: a row of dead time needs

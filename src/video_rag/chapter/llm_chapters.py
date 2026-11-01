@@ -350,13 +350,13 @@ def apply_glossary(chapters, run_id):
     """Fix titles with the per-course term map and digit spellings.
 
     The transcript is the only input, so ASR homophones leak straight into
-    titles (this course's ASR writes 'VK知识库' for 'Wiki 知识库'). Terms come
+    titles (a homophone in the transcript can outvote the real spelling). Terms come
     from data/glossary/<run>.json, which is filled from OCR text + a human
     pass, not from the ASR itself.
     """
     gp = _run(run_id).glossary
     terms = json.loads(gp.read_text(encoding="utf-8")) if gp.exists() else {}
-    # longest first so 'VK知识库' wins over 'VK'
+    # longest first so a term wins over one of its own substrings
     keys = sorted(terms, key=len, reverse=True)
     for c in chapters:
         for field in ("title", "summary"):

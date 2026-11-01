@@ -124,8 +124,8 @@ def main():
     # A "title" whose OCR reading is different every time is a header, not a
     # name: real slide titles read consistently. Measured on a screen-recording
     # course, the app's product name appeared as four readings over 24 chapters
-    # («ACME企业开放服务云平台» / «XACME…» / «ACME3…»), while three genuinely different
-    # chapters on one topic («…服务代码书写» / «…服务注册» / «…表单配置服务») stay
+    # («ACME 平台名称» / «XACME…» / «ACME3…»), while three genuinely different
+    # chapters on one topic («…数据模型» / «…数据同步» / «…数据校验») stay
     # distinct at 0.90 similarity and must not be touched.
     clusters = []
     for c in merged:
@@ -164,8 +164,8 @@ def main():
     # A "title" whose OCR reading is different every time is a header, not a
     # name: real slide titles read consistently. Measured on a screen-recording
     # course, the app's product name appeared as four readings over 24 chapters
-    # («ACME企业开放服务云平台» / «XACME…» / «ACME3…»), while three genuinely different
-    # chapters on one topic («…服务代码书写» / «…服务注册» / «…表单配置服务») stay
+    # («ACME 平台名称» / «XACME…» / «ACME3…»), while three genuinely different
+    # chapters on one topic («…数据模型» / «…数据同步» / «…数据校验») stay
     # distinct at 0.90 similarity and must not be touched.
     clusters = []
     for c in merged:

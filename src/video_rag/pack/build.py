@@ -7,8 +7,8 @@ them, opens the page, and picks that folder. The page binds files to courses by
 content (size + sha1 of head||tail), so file names, extra files and several
 courses in one folder all work.
 
-    scripts/build_pkg.py "/path/to/recordings" --out dist/course --title "Course recordings"
-    scripts/build_pkg.py 1.mp4 --out dist/course --reuse       # skip a finished run
+    vrag pack --out dist/course --title "Course recordings" --runs lecture-1,lecture-2
+    vrag pack --out dist/course --runs lecture-1      # already-indexed runs only
 
 Stages: run the pipeline per video (unless --reuse and the index is already
 there) -> generate the page with --dist -> write README -> gate the result.
@@ -191,8 +191,8 @@ def main():
     html = (out / "index.html").read_text(encoding="utf-8")
     problems = []
     # A leaked key is a pattern, not a substring: the transcript can contain
-    # anything (one sample chunk holds "C:/Users/86151/Desktop/...", which is
-    # course content, not a leaked path).
+    # anything (a transcript can quote a file path off the lecturer's own
+    # screen, which is course content, not a leaked path of ours).
     for m in re.finditer(r"sk-[A-Za-z0-9_\-]{16,}", html):
         problems.append(f"疑似 API key 进了页面：{m.group(0)[:8]}…")
     if "file:///" in html:

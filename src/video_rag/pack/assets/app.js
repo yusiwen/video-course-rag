@@ -22,7 +22,7 @@ const I18N = {
     no_files: '这个目录里没有视频文件。',
     scan_ok: '已匹配', scan_bad: '无视频',
     empty_head: '这门课里没有讲到这几个字的片段',
-    empty_body: '检索只比对讲师的原话和章节标题，换一种说法就未必对得上：讲师说「提交申请」，搜「提报流程」也可能是空的。去掉修饰词、只留两三个关键词再试，或者点上面的目录按章节找。',
+    empty_body: '检索只比对讲师的原话和章节标题，换一种说法就未必对得上：讲师说「新建」，搜「创建」也可能是空的。去掉修饰词、只留两三个关键词再试，或者点上面的目录按章节找。',
     screen_label: '屏幕文字（OCR）· ',
     screen_prefix: '屏幕：', cite_void: '引用不在本次检索结果里',
     retrieved_only: '下面是检索到的片段，请自己看：',
@@ -197,8 +197,8 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 // "[ASR] 讲解 / [屏幕] 幻灯片文字" -> the two channels apart. They are not
 // interchangeable: the screen can sit on a slide nobody is talking about.
 // The row used to show the first 90 characters of the transcript, so a hit whose
-// matched word came later looked unrelated: searching 「下拉框的选项从哪里来」
-// surfaced a row that began "型的这个配置我们回到刚才列模型的地方…". Centre the
+// matched word came later looked unrelated: the query could match a word near the
+// end of a chunk while the excerpt opened on an unrelated sentence. Centre the
 // window on the first token that actually matched.
 function snippet(text, q, width){
   width = width || 90;

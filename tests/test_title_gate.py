@@ -19,10 +19,10 @@ def units(*lines, mode="ppt"):
 
 def test_ui_word_rejected_whole_string_only():
     assert verdict("未登录", set(), set())[0] == "ui_word"
-    # «打印设计器» contains 设计 and «扫码登录» contains 登录: substring matching
+    # «导出报表» contains 导出 and «批量删除» contains 删除: substring matching
     # flagged both and turned two correct titles into errors.
-    assert verdict("打印设计器", set(), set()) is None
-    assert verdict("扫码登录", set(), set()) is None
+    assert verdict("导出报表", set(), set()) is None
+    assert verdict("批量删除", set(), set()) is None
 
 
 def test_deck_name_and_shape():
@@ -59,9 +59,9 @@ def test_persistence_chrome_global_and_per_mode():
 def test_chrome_variants_are_chrome():
     # OCR reads one header several ways; counting raw strings fragmented it so
     # nothing reached the threshold and the product name named 24 chapters.
-    us = [{"mode": "ppt", "ocr_lines": ["ACME开放服务云平台"]} for _ in range(8)]
+    us = [{"mode": "ppt", "ocr_lines": ["ACME 平台名称"]} for _ in range(8)]
     chrome, mc, acr = chrome_and_acronyms(us)
-    for variant in ("，ACME开放服务云平台", "SACME开放服务云平台", "3ACME开放服务云平台"):
+    for variant in ("，ACME 平台名称", "SACME 平台名称", "3ACME 平台名称"):
         v = verdict(variant, chrome_for("ppt", chrome, mc), acr)
         assert v is not None and v[0] in ("chrome_title", "chrome_variant"), variant
 
@@ -77,11 +77,11 @@ def test_composite_judged_fragment_by_fragment():
 def test_similarity_separates_noise_from_neighbours():
     # short readings of one name sit at ~0.83: the picker excludes the band's
     # dominant text at 0.75, while the header rule clusters chapters at 0.90
-    assert similar(norm("品开发平台"), norm("品IE开发平台"), 0.75)
-    assert not similar(norm("品开发平台"), norm("品IE开发平台"), 0.90)
-    assert similar(norm("ACME开放服务云平台"), norm("3ACME开放服务云平台"), 0.90)
+    assert similar(norm("数据平台"), norm("数据IE平台"), 0.75)
+    assert not similar(norm("数据平台"), norm("数据IE平台"), 0.90)
+    assert similar(norm("ACME 平台名称"), norm("3ACME 平台名称"), 0.90)
     # three genuinely different chapters on one theme must NOT cluster
-    a, b = norm("服务管理自定义通用服务服务代码书写"), norm("服务管理自定义通用服务表单配置服务")
+    a, b = norm("数据管理自定义数据模型数据模型编辑"), norm("数据管理自定义数据模型数据校验规则")
     assert not similar(a, b, 0.90)
 
 

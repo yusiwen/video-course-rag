@@ -62,3 +62,18 @@ was ported from, and both produced a package that looked fine and was wrong.
   expire, so the poisoned vocabulary outlived the bug and kept changing which
   title band could be found. Cache only successful results, and treat an empty
   result as a miss.
+
+## The leak gate earned its keep
+
+The first sweep of this repository was declared clean while it still carried real
+material: a phrase from a recorded question in the page's empty-state copy, a
+quoted transcript sentence in a function comment, the lecturer's name in a title
+judge comment, an ASR mishearing in a docstring, real chapter titles in two test
+fixtures, and a path from someone's Windows desktop in a gate comment. None of it
+was in `runs/`; all of it was pasted into code as an illustrative example, which
+is exactly how this material travels.
+
+Two things now make that harder to repeat. The denylist holds those strings, so
+they cannot come back silently; and the gate no longer skips `pack/assets/`,
+which is where one of them was hiding — a directory skip is a hole you cannot see
+from the exit code.

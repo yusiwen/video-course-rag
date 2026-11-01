@@ -10,7 +10,7 @@ Endpoints:
   GET /ask?q=...&run=...   -> {"answer": ..., "cites": [{label, jump, chapter, ...}]}
   GET /video?run=...       -> the mp4 with Range support
 
-/video exists because a file:// page pointing at /Volumes needs the browser to
+/video exists because a file:// page pointing at an external volume needs the browser to
 be allowed to read removable volumes, and Chromium's media stack is fussy about
 it. Streaming over loopback removes that variable entirely.
 

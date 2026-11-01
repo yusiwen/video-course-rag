@@ -29,10 +29,16 @@ DENY = [
     r"OSP", r"openserver", r"差旅", r"报销", r"列模型", r"字典模型", r"工单",
     r"技术培训", r"/Volumes/Data", r"p0-sample", r"郭倩蓉", r"补考",
     r"openserver\.cn", r"task\.openserver", r"wiki\.openserver",
+    # Strings that were actually found pasted into comments, tests and page copy
+    # the first time this check ran on a finished repo, after the repo had
+    # already been declared clean. Product name, an ASR mishearing, a phrase
+    # from a recorded question, a chapter title, a participant name.
+    r"企业开放服务云", r"VK知识库", r"提报流程", r"腾讯会议", r"培训考勤",
+    r"普联课堂", r"李亚伟", r"李厚文",
 ]
 DENY_RE = re.compile("|".join(DENY), re.I)
 
-SKIP_DIRS = {".git", "__pycache__", ".venv", "runs", "dist", "build", "assets"}
+SKIP_DIRS = {".git", "__pycache__", ".venv", "runs", "dist", "build"}
 ALLOW_SUFFIX = {".py", ".md", ".toml", ".yml", ".yaml", ".sh", ".js", ".css", ".html", ".txt", ".json"}
 
 

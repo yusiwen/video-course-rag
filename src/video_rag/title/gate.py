@@ -31,7 +31,7 @@ DECK_RE = re.compile(r"\.(pptx|ppt|docx|doc|pdf|xlsx)|PowerPoint|【兼容模式
 SYMBOL_RE = re.compile(r"^[\W\d_]+$")
 CJK = re.compile(r"[\u4e00-\u9fff]")
 # Whole-string matches only. Substring matching on these flagged real topics
-# («打印设计器» contains 设计, «扫码登录» contains 登录) and made the gate noise.
+# («导出报表» contains 导出, «批量删除» contains 删除) and made the gate noise.
 UI_WORDS = frozenset((
     "未登录", "分享", "收藏", "搜索", "登录", "注册", "更多", "设置", "帮助",
     "文件", "开始", "插入", "设计", "切换", "动画", "幻灯片放映", "审阅",
@@ -62,8 +62,8 @@ def _verdict_single(t, chrome, acronyms):
     tn = norm(t)
     if tn in chrome:
         return ("chrome_title", "高持续率文本，是外壳或水印")
-    # OCR reads the same header differently each time («ACME企业开放服务云平台»,
-    # «XACME企业开放服务云平台», «，ACME企业开放服务云平台»), so an exact set is not
+    # OCR reads the same header differently each time («ACME 平台名称»,
+    # «XACME 平台名称», «，ACME 平台名称»), so an exact set is not
     # enough: a near-match to a known chrome string is chrome too.
     for c in chrome:
         if abs(len(c) - len(tn)) <= 6 and similar(tn, c):
@@ -105,7 +105,7 @@ def chrome_and_acronyms(units):
 
     Two scopes, because one is not enough: a line can dominate the WHOLE run
     (a product header on every screen) or dominate its own mode (the account
-    name «超级管理员» sitting in an app header, the lecturer's name «李亚伟»
+    name «超级管理员» sitting in an app header or a watermark
     overlaid on 92% of the slides). Measured on real runs: the second case stays
     invisible to a global count when its mode is a minority of the run.
     """
@@ -161,7 +161,7 @@ def suspect(title):
 
 
 def similar(a, b, threshold=0.75):
-    """OCR reads the same header differently («品开发平台» / «品IE开发平台»)."""
+    """OCR reads the same header differently («数据平台» / «数据IE平台»)."""
     import difflib
     a, b = (a or "").strip(), (b or "").strip()
     if not a or not b:
