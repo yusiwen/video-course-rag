@@ -29,7 +29,7 @@ Usage:
 
 Writes out/runs/<id>/title_audit.md, prints one line per run.
 """
-from ..paths import run as _run, runs_root
+from ..paths import mkdirs, run as _run, runs_root
 import json
 import os
 import sys
@@ -220,7 +220,7 @@ def audit(run_id):
 
 
 def write_report(r):
-    p = _run(r["run_id"]).report_dir / "title_audit.md"
+    p = mkdirs(_run(r["run_id"]).report_dir / "title_audit.md")
     L = [f"# 标题体检 · {r['run_id']}", "",
          f"- 单元 {r['units']}，融合章节 {r['chapters']}，交付章节 {r['shipped']}",
          f"- 高持续率文本（判为外壳）{r['chrome_lines']} 条",

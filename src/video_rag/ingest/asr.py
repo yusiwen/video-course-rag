@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """P0: FunASR (paraformer-zh + fsmn-vad + ct-punc) transcription with timestamps."""
+from ..paths import run as _run, runs_root, mkdirs
 import json
 import os
 import sys

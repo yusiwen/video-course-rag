@@ -37,7 +37,7 @@ from collections import Counter, defaultdict
 
 from video_rag.title.gate import WINDOW_RE, norm  # noqa: E402
 
-OCR = "./scripts/ocr"
+from ..ocr import backend as ocr
 BAND_COVERAGE_MIN = 0.30       # the title band must hold a candidate in this share of frames
 EXCLUDE_Y = ((0.0, 0.09), (0.955, 1.0))   # taskbar strip, window title bar strip
 DOMINANT_MAX = 0.90            # one spelling in ~100% of frames is a watermark or a
@@ -63,11 +63,7 @@ def ocr_frame(path, cache, recalibrate):
     key = os.path.basename(path)
     if not recalibrate and key in cache:
         return cache[key]
-    r = subprocess.run([OCR, path, "0.25"], capture_output=True, text=True)
-    try:
-        lines = json.loads(r.stdout or "[]")
-    except Exception:
-        lines = []
+    lines = ocr.read(path)
     cache[key] = lines
     return lines
 

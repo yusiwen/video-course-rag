@@ -14,6 +14,7 @@ So boundaries are picked as *novelty peaks with a refractory period*:
   4. units = spans between accepted boundaries; OCR each; merge neighbours
      whose OCR title is identical
 """
+from ..ocr import backend as ocr
 import json
 import os
 import re
@@ -94,7 +95,7 @@ def ocr(png):
     if not png:
         return []
     try:
-        return json.loads(sh(["./scripts/ocr", png, "0.25"]).stdout or "[]")
+        return ocr.read(png)
     except Exception:
         return []
 

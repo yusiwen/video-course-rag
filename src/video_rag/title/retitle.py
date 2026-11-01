@@ -16,6 +16,7 @@ Rules that fix the five junk titles in this sample:
   - if nothing survives, mark title_ok=False and let the chapter layer merge
     the unit away instead of inventing a title
 """
+from ..ocr import backend
 from ..paths import run as _run
 import json
 import os
@@ -46,12 +47,8 @@ REGIONS = {  # x0, y0, x1, y1 in Vision coords (origin bottom-left)
 CJK = re.compile(r"[\u4e00-\u9fff]")
 
 
-def ocr(png):
-    r = subprocess.run(["./scripts/ocr", png, "0.25"], capture_output=True, text=True)
-    try:
-        return json.loads(r.stdout or "[]")
-    except Exception:
-        return []
+def ocr_lines(png):
+    return backend.read(png)
 
 
 def inside(l, box):
@@ -142,7 +139,10 @@ def main():
     profile = load_profile(outdir)
     prof_modes = (profile or {}).get("modes", {})
     no_title_modes = 0
-    ov_path = next((p for p in (f"{outdir}/title_overrides.json",
+    # The run's own overrides.json wins; a file named after the video is the
+    # legacy layout and still honoured so old runs keep working.
+    ov_path = next((p for p in (f"{outdir}/overrides.json",
+                                f"{outdir}/title_overrides.json",
                                 str(_run(stem).overrides)) if os.path.exists(p)), None)
     overrides = {}
     if ov_path:
@@ -156,7 +156,7 @@ def main():
         png = f"{outdir}/{st['thumb']}"
         if not os.path.exists(png):
             continue
-        lines = ocr(png)
+        lines = ocr_lines(png)
         mode = classify(lines)
         # Calibrated geometry beats the shipped guess. A mode with no title band
         # has no title band: saying nothing is better than naming a chapter after
