@@ -89,9 +89,11 @@ def main(argv=None) -> int:
 
     p = sub.add_parser("audit", help="inspect the delivered table of contents")
     p.add_argument("runs", nargs="*")
+    p.add_argument("--strict", action="store_true", help="exit non-zero on any EXPO error")
 
     p = sub.add_parser("page", help="build the self-contained HTML page")
     p.add_argument("--out", default=None)
+    p.add_argument("--runs", default="", help="comma separated run ids (default: all)")
     p.add_argument("--dist", action="store_true", help="package mode: no local-service probe")
 
     p = sub.add_parser("pack", help="build the student deliverable")
@@ -170,7 +172,9 @@ def main(argv=None) -> int:
         return 0
 
     if ns.cmd == "audit":
-        args = ns.runs or [r.id for r in all_runs()]
+        args = list(ns.runs or [r.id for r in all_runs()])
+        if ns.strict:
+            args = ["--strict", *args]
         stage("audit", *args)
         return 0
 
@@ -178,6 +182,8 @@ def main(argv=None) -> int:
         args = []
         if ns.out:
             args += ["--out", ns.out]
+        if ns.runs:
+            args += ["--runs", ns.runs]
         if ns.dist:
             args += ["--dist"]
         stage("page", *args)

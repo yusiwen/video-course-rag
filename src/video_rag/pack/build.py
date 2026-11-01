@@ -109,7 +109,10 @@ def run(cmd, what):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("src", help="a video file, or a directory of videos")
+    ap.add_argument("src", nargs="?", help="a video file, or a directory of videos "
+                                          "(omit when packaging existing runs with --runs)")
+    ap.add_argument("--runs", default="",
+                    help="comma separated run ids to package from the runs root")
     ap.add_argument("--out", required=True, help="output directory, e.g. dist/course")
     ap.add_argument("--title", default="", help="package title used in the README")
     ap.add_argument("--max-mb", type=float, default=20.0,
@@ -120,25 +123,39 @@ def main():
                     help="never run the pipeline; only rebuild the page from existing indexes")
     a = ap.parse_args()
 
-    videos = collect(a.src)
-    if not videos:
-        raise SystemExit(f"no video files in {a.src}")
+    if a.runs:
+        ids = [x.strip() for x in a.runs.split(",") if x.strip()]
+        for rid in ids:
+            if not _run(rid).chunks.exists():
+                raise SystemExit(f"run {rid} has no chunks.jsonl — index it first")
+        print(f"[1/4] pipeline: reusing {len(ids)} run(s)")
+    else:
+        if not a.src:
+            raise SystemExit("give a video/directory, or --runs to package existing runs")
+        videos = collect(a.src)
+        if not videos:
+            raise SystemExit(f"no video files in {a.src}")
 
-    print(f"[1/4] pipeline: {len(videos)} video(s)")
-    catalog = json.load(open(runs_root() / "catalog.json", encoding="utf-8"))
-    by_name = {Path(c["video"]).name: c["run_id"] for c in catalog["courses"]}
-    ids = []
-    for i, v in enumerate(videos):
-        # reuse by name too: the run may already exist under a different id
-        rid = by_name.get(v.name) or slug(v.stem) or f"v{i+1}"
-        ids.append(rid)
-        have = _run(rid).chunks.exists()
-        if (a.reuse and have) or a.skip_pipeline:
-            if not have:
-                raise SystemExit(f"run {rid} has no chunks.jsonl (index step skipped)")
-            print(f"  · reuse {rid}")
-            continue
-        run(["scripts/run_pipeline.sh", str(v), rid], f"{v.name} -> {rid}")
+        print(f"[1/4] pipeline: {len(videos)} video(s)")
+        catalog = json.load(open(runs_root() / "catalog.json", encoding="utf-8"))
+        by_name = {Path(c["video"]).name: c["run_id"] for c in catalog["courses"]}
+        ids = []
+        for i, v in enumerate(videos):
+            # reuse by name too: the run may already exist under a different id
+            rid = by_name.get(v.name) or slug(v.stem) or f"v{i+1}"
+            ids.append(rid)
+            have = _run(rid).chunks.exists()
+            if (a.reuse and have) or a.skip_pipeline:
+                if not have:
+                    raise SystemExit(f"run {rid} has no chunks.jsonl (index step skipped)")
+                print(f"  · reuse {rid}")
+                continue
+            # The pipeline is the CLI's own stages; a package build is not the
+            # place to shell out to a script that only existed in the old layout.
+            for step in ("ingest", "title", "chapter", "index"):
+                r = subprocess.run([sys.executable, "-m", "video_rag", step, str(v), rid], cwd=ROOT)
+                if r.returncode != 0:
+                    raise SystemExit(f"failed: {step} {v.name} -> {rid}")
 
     out = Path(a.out)
     if out.exists():
@@ -146,8 +163,10 @@ def main():
     out.mkdir(parents=True)
 
     print("[2/4] page (dist mode: no local video paths)")
-    run([sys.executable, "scripts/viewer.py", "--dist", "--runs", ",".join(ids),
-         "--out", str(out / "index.html")], "index.html")
+    r = subprocess.run([sys.executable, "-m", "video_rag", "page", "--dist",
+                        "--runs", ",".join(ids), "--out", str(out / "index.html")], cwd=ROOT)
+    if r.returncode != 0:
+        raise SystemExit("failed: index.html")
 
     print("[3/4] README")
     cat = json.load(open(runs_root() / "catalog.json", encoding="utf-8"))
@@ -198,7 +217,7 @@ def main():
     # Title layer: a table of contents made of shell text is useless to a reader
     # and nothing else in this gate would notice. Only titles that are actually
     # shipped count (EXPO); unit-level garbage is reported but not fatal.
-    audit = subprocess.run([sys.executable, "scripts/title_audit.py", "--strict", *ids],
+    audit = subprocess.run([sys.executable, "-m", "video_rag", "audit", "--strict", *ids],
                            cwd=ROOT, capture_output=True, text=True)
     if audit.returncode != 0:
         for line in (audit.stdout + audit.stderr).strip().splitlines():
