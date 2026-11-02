@@ -44,6 +44,20 @@ observed while building the pipeline, not guessed.
   0.6 MB cls) and `ppocrv6_dict.txt` from ModelScope into
   `VIDEO_RAG_OCR_MODELS` (~32 MB once). A machine without that reachability
   fails at construction, not at the first frame.
+- **`jump` is only defined for a unit that has a name.** The jump scan looks for
+  the second where OCR reads the unit's own title again, but the loop scanned
+  every unit anyway: on the reference lecture 231 of 246 units have no title, so
+  each scored zero on all nine candidate frames and returned the start it
+  already had. That was 1795 ffmpeg grabs plus 1795 OCR calls, ~22 minutes, to
+  reproduce an answer the early return gives for free. Skipping unnamed units
+  takes the stage to 21 frames and 15.6 s with **zero differences** across all
+  246 units' `jump`, `jump_lag` and `jump_title_match`.
+- **Know what a stage is made of before optimizing it.** `chapter` runs settle +
+  table + llm_chapters + fuse, measured on a CUDA box at 340 s / 0.06 s / 0.04 s
+  / 0.40 s — the other three are rounding error, so "chapter is slow" is a
+  statement about settle and nothing else. The cost there is frames × (grab +
+  OCR); on the GPU path a frame is ~0.74 s, of which the OCR is ~0.34 s and a
+  fresh ffmpeg seek the rest.
 - **Switching the engine moves unit merges, not boundaries.** Onnxruntime/CPU vs
   torch/CUDA over the same lecture: 243/243 units matched within 2 s and 243/243
   kept their mode, but 71 unit titles differed — both sides being toolbar or
