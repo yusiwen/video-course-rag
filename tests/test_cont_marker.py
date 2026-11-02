@@ -28,6 +28,17 @@ def test_double_stacking_is_still_collapsed():
         assert mod.cont("表单设计器（续）（续）") == "表单设计器（续）"
 
 
+def test_splitting_one_chapter_twice_numbers_the_repeats():
+    """The delivered table must not read 「A（续）」「A（续）」."""
+    chapters = [{"start": 0, "title": "表单设计器"},
+                {"start": 60, "title": "表单设计器（续）"},
+                {"start": 120, "title": "表单设计器（续）"},
+                {"start": 180, "title": "列表设计"}]
+    fuse.number_repeats(chapters)
+    names = [c["title"] for c in chapters]
+    assert names == ["表单设计器", "表单设计器（续）", "表单设计器（续2）", "列表设计"], names
+
+
 if __name__ == "__main__":
     for name, fn in sorted(globals().items()):
         if name.startswith("test_") and callable(fn):

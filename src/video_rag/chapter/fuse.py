@@ -190,7 +190,29 @@ def split_silences(chapters, sents, dur, video, cache):
             out.append({**c, "start": round(head, 2), "end": round(b, 2),
                         "jump": round(max(c["jump"], head), 2) if head > a else c["jump"]})
     out.sort(key=lambda c: c["start"])
-    return out
+    return number_repeats(out)
+
+
+def number_repeats(chapters):
+    """Two chapters with the same name make a table of contents unreadable.
+
+    A chapter split at a visual onset takes its continuation name from `cont()`,
+    and splitting the same chapter twice produces that name twice — the delivered
+    table then reads 「…（续）」「…（续）」, which is what the golden check rejects.
+    Repeats are numbered the same way the table layer numbers them, so the two
+    layers cannot disagree about what a repeat is called.
+    """
+    seen = {}
+    for c in chapters:
+        t = (c.get("title") or "").strip()
+        if not t:
+            continue
+        c["title"] = t
+        n = seen.get(t, 0) + 1
+        seen[t] = n
+        if n > 1:
+            c["title"] = re.sub(CONT_TAIL, "", t) + f"（续{n}）"
+    return chapters
 
 
 def cont(title):
