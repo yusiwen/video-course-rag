@@ -22,6 +22,25 @@ def write_srt(items, path):
         f.write("\n".join(lines))
 
 
+def device() -> str:
+    """Where FunASR runs: ``VIDEO_RAG_ASR_DEVICE`` (cpu/cuda/mps), else automatic.
+
+    macOS keeps CPU: FunASR's MPS path is unreliable and short clips transcribe
+    fast enough. Anywhere else, use the GPU if torch can see one — a 90-minute
+    lecture is a 15-minute CPU job versus a minute on a Blackwell card.
+    """
+    want = os.environ.get("VIDEO_RAG_ASR_DEVICE", "").strip().lower()
+    if want:
+        return want
+    if sys.platform == "darwin":
+        return "cpu"
+    try:
+        import torch
+    except ImportError:
+        return "cpu"
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
 def main():
     from funasr import AutoModel
 
@@ -31,22 +50,23 @@ def main():
     wav = sys.argv[2] if len(sys.argv) > 2 else str(run.audio)
     out_prefix = str(run.root / "asr")
 
+    dev = device()
     t0 = time.time()
     model = AutoModel(
         model="paraformer-zh",
         vad_model="fsmn-vad",
         vad_kwargs={"max_single_segment_time": 30000},
         punc_model="ct-punc",
-        device="cpu",  # FunASR's MPS path is unreliable on macOS; CPU is fast enough here
+        device=dev,
         disable_update=True,
         disable_pbar=True,
     )
-    print(f"[funasr] model loaded in {time.time() - t0:.1f}s", flush=True)
+    print(f"[funasr] device={dev} model loaded in {time.time() - t0:.1f}s", flush=True)
 
     t1 = time.time()
     res = model.generate(input=wav, batch_size_s=300, hotword="")
     elapsed = time.time() - t1
-    print(f"[funasr] generate done in {elapsed:.1f}s", flush=True)
+    print(f"[funasr] generate done in {elapsed:.1f}s ({elapsed/60:.1f} min)", flush=True)
 
     with open(f"{out_prefix}_raw.json", "w", encoding="utf-8") as f:
         json.dump(res, f, ensure_ascii=False, indent=2, default=str)

@@ -11,13 +11,18 @@ Usage: scripts/search.py "<query>" [--run sample] [--k 5] [--open]
 from ..paths import run as _run
 import argparse
 import json
+import os
 import math
 import re
 import struct
 import subprocess
 from pathlib import Path
 
-OLLAMA = "http://localhost:11434/api/embed"
+def ollama_embed() -> str:
+    """Embedding endpoint; ``VIDEO_RAG_OLLAMA`` overrides host and port."""
+    return os.environ.get("VIDEO_RAG_OLLAMA", "http://localhost:11434").rstrip("/") + "/api/embed"
+
+
 MODEL = "bge-m3"
 
 
@@ -67,7 +72,7 @@ class BM25:
 
 def embed_one(text):
     body = json.dumps({"model": MODEL, "input": [text]}).encode()
-    r = subprocess.run(["curl", "-s", "--max-time", "60", OLLAMA, "-d", body],
+    r = subprocess.run(["curl", "-s", "--max-time", "60", ollama_embed(), "-d", body],
                        capture_output=True, check=True)
     return json.loads(r.stdout)["embeddings"][0]
 

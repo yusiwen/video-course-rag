@@ -18,7 +18,15 @@ import subprocess
 import time
 from pathlib import Path
 
-OLLAMA = "http://localhost:11434/api/embed"
+def ollama_embed() -> str:
+    """Embedding endpoint. ``VIDEO_RAG_OLLAMA`` points it at another host/port.
+
+    Default is the local daemon, which is what a single-machine setup has; a
+    build box that keeps its models elsewhere can override just this URL.
+    """
+    return os.environ.get("VIDEO_RAG_OLLAMA", "http://localhost:11434").rstrip("/") + "/api/embed"
+
+
 MODEL = "bge-m3"
 BATCH = 16
 
@@ -28,7 +36,7 @@ def embed(texts):
     for i in range(0, len(texts), BATCH):
         batch = texts[i:i + BATCH]
         body = json.dumps({"model": MODEL, "input": batch}).encode()
-        r = subprocess.run(["curl", "-s", "--max-time", "120", OLLAMA,
+        r = subprocess.run(["curl", "-s", "--max-time", "120", ollama_embed(),
                             "-d", body], capture_output=True, check=True)
         d = json.loads(r.stdout)
         out.extend(d["embeddings"])

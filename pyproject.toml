@@ -19,7 +19,12 @@ classifiers = [
 dependencies = []
 
 [project.optional-dependencies]
-asr = ["funasr>=1.1", "torch", "torchaudio"]
+# Speech-to-text. torch/torchaudio install from the CUDA index on a GPU box:
+#   uv pip install --extra-index-url https://download.pytorch.org/whl/cu130 \
+#       "torch==2.11.0+cu130" "torchaudio==2.11.0+cu130"
+asr = ["funasr>=1.1", "torch", "torchaudio", "numpy"]
+# Screen-reading on anything that is not macOS (the Vision helper needs Swift).
+ocr-linux = ["rapidocr>=3", "onnxruntime>=1.17", "opencv-python-headless", "pillow"]
 dev = ["pytest"]
 
 [project.scripts]
