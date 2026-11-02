@@ -39,7 +39,14 @@ from video_rag.title.gate import WINDOW_RE, norm  # noqa: E402
 
 from ..ocr import backend
 BAND_COVERAGE_MIN = 0.30       # the title band must hold a candidate in this share of frames
-EXCLUDE_Y = ((0.0, 0.09), (0.955, 1.0))   # taskbar strip, window title bar strip
+EXCLUDE_Y = ((0.0, 0.09), (0.88, 1.0))   # taskbar strip, window chrome strip
+# The upper exclusion used to start at 0.955, which only covers the window title
+# bar. A second OCR engine showed why that is not enough: on PP-OCR the tallest
+# boxes in a PowerPoint window are the ribbon labels ("剪切", "文字方向"), so the
+# band search settled at y 0.885-0.965 and every unit got named after a toolbar
+# button — measured on a real lecture, 233 of 259 units took a toolbar or product
+# name as their title. A slide title never sits in that strip; bands found there
+# are chrome, and refusing them yields a neutral title instead of a wrong one.
 DOMINANT_MAX = 0.90            # one spelling in ~100% of frames is a watermark or a
                               #    product name; an app nav bar cycles between a few
                               #    entries («表单设计器» / «订单管理») and is worth using
