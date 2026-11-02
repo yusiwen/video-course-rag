@@ -104,6 +104,14 @@ def main():
     SW, SH = [int(x) for x in r.stdout.strip().split(",")]
     tmp = f"{outdir}/_settle.png"
 
+    named = sum(1 for st in d["states"] if (st.get("title") or "").strip())
+    if not named:
+        # Without titles there is nothing for a jump to recover, so every unit
+        # would silently keep jump == start. That is the documented order
+        # (title, then chapter) being run backwards, not a data problem.
+        print("warning: no unit has a title — run `vrag title` first, or every "
+              "jump will equal its start", file=sys.stderr)
+
     for st in d["states"]:
         region = REGIONS.get(st["mode"], REGIONS["ppt-fs"])
 
