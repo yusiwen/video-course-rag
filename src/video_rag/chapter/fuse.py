@@ -17,6 +17,7 @@ Output : out/runs/<id>/chapters_fused.json
 """
 from ..paths import run as _run
 import bisect
+import difflib
 import json
 import os
 import sys
@@ -203,6 +204,42 @@ def cont(title):
     return t if t.endswith(SUFFIX) else t + SUFFIX
 
 
+def _flat(s):
+    return "".join(ch for ch in s if not ch.isspace())
+
+
+ANCHOR_MIN = 0.62
+
+
+def resolve_start(c, sents, floor=0):
+    """Which sentence does this chapter actually start on?
+
+    The table stores `start_sentence`, but that number is only valid in the run
+    that produced it. When the same table is applied to a run whose ASR split
+    sentences differently, every number after the first moved split points at
+    the wrong place — measured across a 92-minute lecture, chapter starts slid
+    by up to 47 seconds toward the end while the titles stayed right.
+
+    `start_text` (written since this change, or backfilled) is the sentence the
+    chapter opened on; matching that text finds the boundary again. The number
+    remains the fallback so old tables keep working.
+    """
+    a = _flat(c.get("start_text") or "")
+    if a:
+        best, idx = 0.0, None
+        for i in range(floor, len(sents)):
+            r = difflib.SequenceMatcher(None, a, _flat(sents[i]["text"])).ratio()
+            if i + 1 < len(sents):
+                # a thin opening sentence is stored together with the next one
+                pair = _flat(sents[i]["text"]) + _flat(sents[i + 1]["text"])
+                r = max(r, difflib.SequenceMatcher(None, a, pair).ratio())
+            if r > best:
+                best, idx = r, i
+        if idx is not None and best >= ANCHOR_MIN:
+            return idx
+    return max(1, int(c["start_sentence"])) - 1
+
+
 def main():
     run_id = sys.argv[1] if len(sys.argv) > 1 else "sample"
     outdir = str(_run(run_id).root)
@@ -241,8 +278,10 @@ def main():
         return None
 
     chapters = []
+    prev = 0
     for c in llm:
-        s_idx = max(1, int(c["start_sentence"])) - 1
+        s_idx = resolve_start(c, sents, prev)
+        prev = s_idx
         t_text = t_of[s_idx]
         k = snap(t_text)
         if k is None:

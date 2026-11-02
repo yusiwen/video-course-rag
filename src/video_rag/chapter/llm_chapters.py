@@ -406,6 +406,37 @@ def merge_short(chapters, sents, min_s=40.0):
     return out
 
 
+def anchor(text: str, n: int = 32) -> str:
+    """A short comparable prefix of the sentence a chapter starts on.
+
+    Sentence numbers only mean something inside the run that produced them: with
+    a different machine or ASR build the split moves, and every number after the
+    first moved split points at the wrong sentence — measured on a 92-minute
+    lecture, that drifted chapter starts by up to 47 seconds by the end. The
+    anchor lets the fuse layer find the boundary again by what was said.
+    """
+    t = "".join(ch for ch in text if not ch.isspace())
+    return t[:n]
+
+
+MIN_ANCHOR = 8
+
+
+def anchor_at(sents, i: int, n: int = 32) -> str:
+    """Anchor for the sentence at index i, widened when that sentence is thin.
+
+    A chapter can open on "嗯" or "好"; matching eight characters against the
+    whole transcript would hit a dozen wrong sentences. Pull the next sentence
+    in until the anchor is long enough to be distinctive.
+    """
+    t = "".join(ch for ch in sents[i]["text"] if not ch.isspace())
+    j = i + 1
+    while len(t) < MIN_ANCHOR and j < len(sents):
+        t += "".join(ch for ch in sents[j]["text"] if not ch.isspace())
+        j += 1
+    return t[:n]
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run_id")
@@ -440,7 +471,9 @@ def main():
         print(f"read {len(ch)} chapters from {out_path}")
         chapters = [{"start_sentence": int(c["start_sentence"]),
                      "end_sentence": int(c["end_sentence"]),
-                     "title": c["title"], "summary": c["summary"]} for c in ch]
+                     "title": c["title"], "summary": c["summary"],
+                     **({"start_text": c["start_text"]} if c.get("start_text") else {})}
+                    for c in ch]
     else:
         dur_s = (sents[-1]["end"] - sents[0]["start"]) / 1000
         lo, hi = (a.min_chapters, a.max_chapters)
@@ -461,6 +494,11 @@ def main():
     n_terms = apply_glossary(chapters, a.run_id)
     if n_terms:
         print(f"glossary: {n_terms} term(s) applied")
+    # Record what each boundary said, not only its sentence number: a table is
+    # routinely reused on a machine whose ASR splits sentences differently, and
+    # then every number after the first moved split is wrong.
+    for c in chapters:
+        c.setdefault("start_text", anchor_at(sents, c["start_sentence"] - 1))
     json.dump({"video": a.run_id, "backend": a.backend,
                "chapters": chapters}, open(out_path, "w"), ensure_ascii=False, indent=1)
 
