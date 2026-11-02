@@ -57,10 +57,43 @@ vrag page                        # 或：vrag pack --out dist/course
 `vrag audit` 是闸门：目录里中性标签过多、外壳文字过多、缺标题过多，都会让它失败。
 体检不过的 run 不应该发出去。
 
+### Linux（没有 Apple Vision）
+
+macOS 上画面读字用 Vision（`swiftc` 现编一个二进制）；Linux 上用 RapidOCR，
+模型随 wheel 附带，运行时不需要联网下载：
+
+```bash
+sudo apt install ffmpeg
+python3 -m venv .venv && . .venv/bin/activate
+uv pip install -e ".[asr,ocr-linux]"
+
+# 有 NVIDIA 显卡时，torch 换成 CUDA 轮子（版本要和本机驱动匹配）
+uv pip install --index-strategy unsafe-best-match \
+  --index-url https://pypi.org/simple \
+  --extra-index-url https://download.pytorch.org/whl/cu130 \
+  "torch==2.11.0+cu130" "torchaudio==2.11.0+cu130"
+```
+
+两条环境变量：
+
+| 变量 | 作用 |
+|---|---|
+| `VIDEO_RAG_OCR` | `vision` / `rapidocr`，默认按平台选 |
+| `VIDEO_RAG_ASR_DEVICE` | `cpu` / `cuda` / `mps`，默认 macOS 用 cpu、其余有 CUDA 就用 |
+| `VIDEO_RAG_OLLAMA` | embedding 服务地址，默认 `localhost:11434` |
+
+实测（同一段 92 分钟课程，Mac 用 Vision+CPU，Spark 用 RapidOCR+CUDA）：
+
+- 转写快 18 倍（92 分钟音频 19.7 秒），文字与 macOS 结果相似度 0.9998
+- 切章 35 章全部对齐，标题 35/35 一致；前提是切章表带上了 `start_text`
+- 画面分段慢 7 倍（22 分钟 vs 3 分钟）——OCR 是 Linux 侧唯一的瓶颈
+- Linux 侧校准常常找不到标题带，单元标题会退化成中性标题。这是有意的：
+  给控件命名比承认没名字更糟；章标题主要由 LLM 切章表提供，不依赖它
+
 ## 已知限制（alpha）
 
-- **构建端必须是 macOS**：OCR 助手是 Swift + Vision，Linux 标准栈里没有等价物；
-  语音识别本身跨平台。
+- **两个平台都能构建**：macOS 用 Vision 读画面，Linux 用 RapidOCR；两者结果不逐字
+  相同，画面分段在 Linux 上慢 7 倍左右，单元标题质量也更弱（见上面「Linux」一节）。
 - **中文优先**：断句、标题启发式和界面文案都是按中文讲座设计的；英文素材未实测，
   当前标题过滤会丢弃非 CJK 行。
 - **检索是词面匹配**：页面里没有查询编码器，只能匹配讲师说过的词和章节标题，

@@ -5,13 +5,49 @@ observed while building the pipeline, not guessed.
 
 ## Platform
 
-- **The build host must be macOS.** `native/ocr/ocr.swift` links Apple's Vision
-  framework and is compiled with `swiftc`. Titles, calibration and the audit all
-  depend on OCR line boxes and confidences, so a different engine is a different
-  tool: PaddleOCR or Tesseract are not drop-in replacements — the heuristics were
-  tuned against Vision's coordinates.
+- **macOS uses Vision, Linux uses RapidOCR, and they are not interchangeable.**
+  `native/ocr/ocr.swift` links Apple's Vision framework and is compiled with
+  `swiftc`; on Linux `ocr/rapid.py` runs RapidOCR, whose models ship in the wheel.
+  Both return the same shape — `{text, conf, x, y, w, h}`, normalised, origin
+  bottom-left — because the consumers rely on it: a header is `y > 0.86`, a logo
+  in the corner is `x > 0.78 and y > 0.82`. RapidOCR reports top-left pixel
+  corners, so `rapid.py` flips `y` on the way out.
+- **RapidOCR is slower and noisier, in ways the heuristics notice.** On the same
+  frames it takes 1.0–1.8 s where Vision takes 0.1–0.2 s, and it finds 4–11 more
+  lines, because it reads toolbar glyphs as text (`PAQ`, `最小化`). Segmentation
+  of a 92-minute lecture therefore takes 22 minutes instead of 3.
+- **A different engine finds a different title band.** Calibration builds each
+  mode's title band out of the tallest line per frame. On PP-OCR the tallest boxes
+  in a PowerPoint window are ribbon labels, so the band settled at y 0.885–0.965
+  and 233 of 259 units were named after a toolbar button ("剪切", "文字方向") or
+  the product header. Those bands are now rejected as window chrome and the units
+  fall back to neutral labels — a chapter called "toolbar" is worse than one
+  called "slides (4 min)".
 - Transcription (`funasr`) is cross-platform; it is the only part of `ingest`
-  that installs third-party code (about 1.2 GB with torch).
+  that installs third-party code (about 1.2 GB with torch). With CUDA it runs at
+  RTF 0.0036 (19.7 s for 92 minutes) against 0.32 on CPU, and the text is
+  identical to the CPU run.
+
+## Reusing a chapter table on another machine
+
+- **`start_sentence` is only valid in the run that produced it.** The LLM table
+  stores sentence numbers, and a different machine (or another torch build, or
+  another FunASR version) splits sentences slightly differently: the same audio
+  gave 867 sentences on macOS and 873 on Linux, with a transcript that is 0.9998
+  identical. Every chapter start after the first moved split then pointed at the
+  wrong sentence, and the error accumulated — 12 of 35 chapters drifted, up to 47
+  seconds by the end of the lecture, while all the titles stayed right. It reads
+  as sloppy editing, not as a bug.
+- Tables now also store `start_text`: the sentence the chapter opened on, widened
+  to at least eight characters when that sentence is thin ("嗯"). The fuse layer
+  matches it against the transcript, so the boundary is found by what was said.
+  Old tables keep working through the number fallback.
+- **What still differs after that fix:** visual snapping can move a boundary to a
+  nearby unit onset, and unit segmentation itself is engine-dependent (246 units
+  on macOS, 259 on Linux), so four chapters still start within 14 s of the macOS
+  position. Chunk text similarity is about 0.68 because chunks group the same
+  speech into different windows when the sentence split moves; the words are the
+  same.
 
 ## Language
 

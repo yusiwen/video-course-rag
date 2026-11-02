@@ -65,6 +65,46 @@ vrag page                        # or: vrag pack --out dist/course
 mostly neutral labels, mostly shell text, or too often missing. A run that fails
 should not be shipped.
 
+### On Linux (no Apple Vision)
+
+macOS reads the screen with Vision, compiled from `native/ocr/ocr.swift` on the
+spot. On Linux the same job goes to RapidOCR, whose models ship inside the wheel,
+so nothing is downloaded at run time:
+
+```bash
+sudo apt install ffmpeg
+python3 -m venv .venv && . .venv/bin/activate
+uv pip install -e ".[asr,ocr-linux]"
+
+# with an NVIDIA card, swap torch for the CUDA wheels your driver matches
+uv pip install --index-strategy unsafe-best-match \
+  --index-url https://pypi.org/simple \
+  --extra-index-url https://download.pytorch.org/whl/cu130 \
+  "torch==2.11.0+cu130" "torchaudio==2.11.0+cu130"
+```
+
+Three environment variables decide where the work runs:
+
+| variable | meaning |
+|---|---|
+| `VIDEO_RAG_OCR` | `vision` or `rapidocr`; default is by platform |
+| `VIDEO_RAG_ASR_DEVICE` | `cpu`, `cuda` or `mps`; macOS stays on cpu, elsewhere CUDA is used when present |
+| `VIDEO_RAG_OLLAMA` | embedding endpoint; default `localhost:11434` |
+
+Measured on the same 92-minute lecture (macOS: Vision + CPU; aarch64 GB10:
+RapidOCR + CUDA):
+
+- transcription is 18x faster (19.7 s for 92 minutes of audio) and the transcript
+  is 0.9998 similar to the macOS one
+- all 35 chapters land on the macOS boundary with 35/35 identical titles — but
+  only because the chapter table carries `start_text` (see `docs/limitations.md`)
+- screen segmentation is 7x slower (22 min vs 3 min); OCR is the only bottleneck
+  on Linux
+- calibration often finds no title band on Linux, so unit titles fall back to
+  neutral labels. That is deliberate: naming a chapter after a toolbar button is
+  worse than admitting it has no name, and chapter titles come from the LLM table
+  anyway
+
 ## Repository layout
 
 ```
@@ -84,8 +124,9 @@ docs/                 English; *.zh-CN.md is the Chinese version
 
 ## Known limits (alpha)
 
-- **Build host must be macOS.** The OCR helper is Swift + Vision; there is no
-  equivalent in the standard Linux stack. The ASR step is cross-platform.
+- **Both macOS and Linux can build.** macOS reads frames with Vision, Linux with
+  RapidOCR. The two do not agree word for word: screen segmentation is about 7x
+  slower on Linux and unit titles are weaker there (see "On Linux" above).
 - **Chinese first.** Sentence splitting, title heuristics and the UI copy were
   designed around Chinese lecture recordings. English material is untested and
   the title filter currently discards non-CJK lines.
