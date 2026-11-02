@@ -34,11 +34,26 @@ def test_existing_anchors_are_kept_verbatim():
     assert out[0]["start_text"] == "别人写好的一句话"
 
 
-def test_a_row_past_the_transcript_keeps_no_anchor_and_says_so():
+def test_a_row_past_the_transcript_is_clamped_not_an_index_error():
+    """2275 sentences on one machine, 2272 on another: the last row overflows.
+
+    merge_short() indexes sents[end_sentence - 1] three stages later, so an
+    unclamped row is an IndexError, not a wrong title.
+    """
+    table = [{"start_sentence": 2, "end_sentence": 99, "title": "越界", "summary": ""}]
+    out, added = L.anchor_table(table, SENTS)
+    assert out[0]["end_sentence"] == len(SENTS)
+    assert out[0]["start_sentence"] == 2
+    assert added == 1
+    L.merge_short(out, SENTS)          # must not raise
+
+
+def test_a_start_past_the_transcript_lands_on_the_last_sentence():
     table = [{"start_sentence": 99, "end_sentence": 99, "title": "越界", "summary": ""}]
     out, added = L.anchor_table(table, SENTS)
-    assert added == 0
-    assert "start_text" not in out[0]
+    assert out[0]["start_sentence"] == len(SENTS)
+    assert out[0]["end_sentence"] == len(SENTS)
+    assert added == 1
 
 
 if __name__ == "__main__":

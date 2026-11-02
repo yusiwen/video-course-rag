@@ -447,17 +447,26 @@ def anchor_table(ch, sents):
     by hand — get their anchors derived here rather than being trusted.
     """
     out, added = [], 0
+    n = len(sents)
     for c in ch:
         i = max(1, int(c["start_sentence"])) - 1
+        j = int(c["end_sentence"])
+        if i >= n or j > n:
+            # The same lecture splits into 2275 sentences on one machine and
+            # 2272 on another, so a table written there can point past the end
+            # of the transcript here. Clamp and say so — the alternative is an
+            # IndexError three stages later, inside merge_short.
+            print(f"warning: chapter {c.get('title')!r} spans sentences {i + 1}-{j} "
+                  f"but this transcript has {n}; clamped")
+            i = min(i, n - 1)
+            j = n
+        j = max(j, i + 1)
         text = (c.get("start_text") or "").strip()
-        if not text:
-            if i < len(sents):
-                text = anchor_at(sents, i)
-                added += 1
-            else:
-                print(f"warning: chapter {c.get('title')!r} starts past the transcript")
+        if not text and i < n:
+            text = anchor_at(sents, i)
+            added += 1
         out.append({"start_sentence": i + 1,
-                    "end_sentence": int(c["end_sentence"]),
+                    "end_sentence": j,
                     "title": c["title"], "summary": c["summary"],
                     **({"start_text": text} if text else {})})
     return out, added
