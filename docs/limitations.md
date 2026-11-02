@@ -44,6 +44,16 @@ observed while building the pipeline, not guessed.
   0.6 MB cls) and `ppocrv6_dict.txt` from ModelScope into
   `VIDEO_RAG_OCR_MODELS` (~32 MB once). A machine without that reachability
   fails at construction, not at the first frame.
+- **On RapidOCR the audit's chrome vocabulary absorbs real topics.** Chrome is
+  learned by counting OCR lines that recur across units; on Vision those lines
+  are window furniture, but on RapidOCR the unit's lines include ribbon labels,
+  so a phrase that is *also* a slide topic clears the threshold — `模型定义` did
+  on a lecture where it is both. `verdict()` then flags the delivered titles
+  that contain it (`业务模型定义`, `模型内容定义`) as `chrome_variant`, which is a
+  false positive with a real consequence: it is an EXPO finding, and EXPO blocks
+  delivery. Measured over five lectures: EXPO 0/0/0/0 on four, 2 on the fifth;
+  the fallback-layer number (RISK) is 128-181 on RapidOCR against 0-3 on Vision,
+  because that layer *is* the unit titles.
 - **`jump` is only defined for a unit that has a name.** The jump scan looks for
   the second where OCR reads the unit's own title again, but the loop scanned
   every unit anyway: on the reference lecture 231 of 246 units have no title, so

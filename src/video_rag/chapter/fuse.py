@@ -18,6 +18,7 @@ Output : out/runs/<id>/chapters_fused.json
 from ..paths import run as _run
 import bisect
 import difflib
+import re
 import json
 import os
 import sys
@@ -46,6 +47,7 @@ ROW_MIN_S = 60.0        # dead time shorter than this is not worth a TOC row
 ACT_FPS, ACT_W, ACT_H, ACT_PIX = 2.0, 320, 180, 20
 ACT_CACHE = "activity.json"
 SUFFIX = "（续）"
+CONT_TAIL = re.compile(r"（续\d*）$")     # 已带续号（含「（续5）」）就算标过了
 
 
 def hhmm(t):
@@ -192,7 +194,11 @@ def split_silences(chapters, sents, dur, video, cache):
 
 
 def cont(title):
-    """Continuation marker, never stacked twice ("（续）（续）")."""
+    """Continuation marker, never stacked twice ("（续）（续）").
+
+    A numbered marker counts as already marked: appending to "…（续5）" produced
+    "…（续5）（续）" in a delivered table of contents.
+    """
 
     def tidy(t):
         t = str(t).strip()
@@ -201,7 +207,7 @@ def cont(title):
         return t
 
     t = tidy(title)
-    return t if t.endswith(SUFFIX) else t + SUFFIX
+    return t if CONT_TAIL.search(t) else t + SUFFIX
 
 
 def _flat(s):

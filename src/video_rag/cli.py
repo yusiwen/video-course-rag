@@ -21,7 +21,7 @@ import argparse
 import importlib
 import sys
 
-from .paths import Run, all_runs, run as _run, runs_root
+from .paths import Run, all_runs, run as _run, run as paths_run, runs_root
 
 STAGES = {
     "asr": "video_rag.ingest.asr",
@@ -174,7 +174,22 @@ def main(argv=None) -> int:
         return 0
 
     if ns.cmd == "audit":
-        args = list(ns.runs or [r.id for r in all_runs()])
+        # A run directory can exist without having reached the title layer — an
+        # `init` that never ran, a stage that failed. Auditing it is a
+        # FileNotFoundError on states.json, which hides the runs that do have
+        # something to say, so name the ones being skipped instead.
+        ids = list(ns.runs or [r.id for r in all_runs()])
+        ready = []
+        for rid in ids:
+            if (paths_run(rid).root / "states.json").exists():
+                ready.append(rid)
+            else:
+                print(f"skip {rid}: no states.json (did the run reach the "
+                      f"picture stage?)", file=sys.stderr)
+        if not ready:
+            print("nothing to audit", file=sys.stderr)
+            return 1
+        args = list(ready)
         if ns.strict:
             args = ["--strict", *args]
         stage("audit", *args)

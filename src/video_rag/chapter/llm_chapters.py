@@ -128,6 +128,7 @@ def call_openai(prompt):
 
 SLACK = 12          # how far past the last sentence id we accept and clamp
 SUFFIX = "（续）"
+CONT_TAIL = re.compile(r"（续\d*）$")     # 已带续号（含「（续5）」）就算标过了
 
 
 def tidy_title(t):
@@ -145,7 +146,7 @@ def cont(title):
     "员工信息案例数据对象（续）（续）" in the table of contents.
     """
     t = tidy_title(title)
-    return t if t.endswith(SUFFIX) else t + SUFFIX
+    return t if CONT_TAIL.search(t) else t + SUFFIX
 
 
 def parse(text, n_sent, notes=None):
