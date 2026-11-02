@@ -437,6 +437,32 @@ def anchor_at(sents, i: int, n: int = 32) -> str:
     return t[:n]
 
 
+def anchor_table(ch, sents):
+    """Give every chapter the text its boundary said, using this transcript.
+
+    A table that knows only sentence numbers is correct on the machine that
+    produced it and wrong everywhere else: the same lecture splits into 873
+    sentences there and 867 here, so every boundary past the first differing
+    split points somewhere else. Tables written before `start_text` existed — or
+    by hand — get their anchors derived here rather than being trusted.
+    """
+    out, added = [], 0
+    for c in ch:
+        i = max(1, int(c["start_sentence"])) - 1
+        text = (c.get("start_text") or "").strip()
+        if not text:
+            if i < len(sents):
+                text = anchor_at(sents, i)
+                added += 1
+            else:
+                print(f"warning: chapter {c.get('title')!r} starts past the transcript")
+        out.append({"start_sentence": i + 1,
+                    "end_sentence": int(c["end_sentence"]),
+                    "title": c["title"], "summary": c["summary"],
+                    **({"start_text": text} if text else {})})
+    return out, added
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("run_id")
@@ -469,11 +495,9 @@ def main():
     if a.backend == "file":
         ch = json.load(open(out_path))["chapters"]
         print(f"read {len(ch)} chapters from {out_path}")
-        chapters = [{"start_sentence": int(c["start_sentence"]),
-                     "end_sentence": int(c["end_sentence"]),
-                     "title": c["title"], "summary": c["summary"],
-                     **({"start_text": c["start_text"]} if c.get("start_text") else {})}
-                    for c in ch]
+        chapters, added = anchor_table(ch, sents)
+        if added:
+            print(f"anchored {added}/{len(ch)} chapters from this machine's transcript")
     else:
         dur_s = (sents[-1]["end"] - sents[0]["start"]) / 1000
         lo, hi = (a.min_chapters, a.max_chapters)
