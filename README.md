@@ -1,5 +1,13 @@
 # video-course-rag
 
+[![ci](https://github.com/yusiwen/video-course-rag/actions/workflows/ci.yml/badge.svg)](https://github.com/yusiwen/video-course-rag/actions/workflows/ci.yml)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+[![platform](https://img.shields.io/badge/platform-macOS%20%7C%20Linux-lightgrey.svg)](#on-linux-no-apple-vision)
+[![status](https://img.shields.io/badge/status-alpha-orange.svg)](docs/limitations.md)
+
+**English** · [简体中文](README.zh-CN.md)
+
 Turn recorded lectures into a **searchable course package** a student can open by
 double-clicking one HTML file — no server, no Python, no account.
 
