@@ -82,5 +82,5 @@ def test_toolbar_glyphs_are_not_text():
 
     for junk in ("PAQ", "aa", "×", "□", "—", "最小化", "最大化", "关闭"):
         assert _noise(junk), junk
-    for real in ("差旅报销", "业务模型定义", "表单设计器", "报销", "Q&A 环节"):
+    for real in ("学生名单", "业务模型定义", "表单设计器", "课程安排", "Q&A 环节"):
         assert not _noise(real), real
