@@ -99,6 +99,41 @@ Three environment variables decide where the work runs:
 | `VIDEO_RAG_ASR_DEVICE` | `cpu`, `cuda` or `mps`; macOS stays on cpu, elsewhere CUDA is used when present |
 | `VIDEO_RAG_OLLAMA` | embedding endpoint; default `localhost:11434` |
 
+#### Faster screen reading (optional)
+
+The same PP-OCR models can run through torch instead of onnxruntime:
+
+```bash
+export VIDEO_RAG_OCR_ENGINE=torch   # onnxruntime is the default
+export VIDEO_RAG_OCR_DEVICE=cuda
+```
+
+No extra package — the `asr` extra already installs torch. The first call
+downloads the torch checkpoints and the character dictionary (~32 MB) into
+`~/.cache/video-course-rag/ocr` (`VIDEO_RAG_OCR_MODELS` overrides the path,
+`VIDEO_RAG_OCR_BATCH` the recognition batch size), because torch checkpoints
+carry neither the dictionary nor the metadata onnxruntime reads.
+
+Measured on the same 92-minute lecture, same frames:
+
+| | onnxruntime / CPU | torch / CUDA |
+|---|---|---|
+| screen segmentation (`states`) | 22 min | **8.5 min** |
+| one 121-line 1080p frame | 2550 ms | 343 ms |
+| detection alone | 317 ms | 130 ms |
+
+Two numbers explain the gap: recognition is ~87% of a dense frame, and the stock
+recognition batch of 6 makes ~21 small forward passes for a 121-line screen.
+The torch engine defaults the batch to 32, and that alone takes even the CPU
+engine from 2550 ms to 1495 ms — so `VIDEO_RAG_OCR_BATCH` is worth setting even
+without a GPU.
+
+The engine does change OCR text in the margins (a space inside a toolbar label,
+one toolbar glyph read as a character), which reaches the merge rule that joins
+neighbours with identical titles: this lecture went from 259 units to 249. Unit
+boundaries and mode labels did not move (243/243 matched within 2 s), and the
+delivered chapters come from the LLM table, not from those unit titles.
+
 Measured on the same 92-minute lecture (macOS: Vision + CPU; aarch64 GB10:
 RapidOCR + CUDA):
 

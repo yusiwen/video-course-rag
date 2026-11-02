@@ -24,6 +24,10 @@ dependencies = []
 #       "torch==2.11.0+cu130" "torchaudio==2.11.0+cu130"
 asr = ["funasr>=1.1", "torch", "torchaudio", "numpy"]
 # Screen-reading on anything that is not macOS (the Vision helper needs Swift).
+# onnxruntime is the default engine and needs no GPU. Setting
+# VIDEO_RAG_OCR_ENGINE=torch VIDEO_RAG_OCR_DEVICE=cuda runs the same PP-OCR
+# models through torch instead — no extra package, since the `asr` extra already
+# brings torch; the weights (~32 MB) download once to ~/.cache on first use.
 ocr-linux = ["rapidocr>=3", "onnxruntime>=1.17", "opencv-python-headless", "pillow"]
 dev = ["pytest"]
 

@@ -27,6 +27,31 @@ observed while building the pipeline, not guessed.
   that installs third-party code (about 1.2 GB with torch). With CUDA it runs at
   RTF 0.0036 (19.7 s for 92 minutes) against 0.32 on CPU, and the text is
   identical to the CPU run.
+- **On the screen side the GPU is not the lever; the recognition batch is.**
+  RapidOCR's torch engine runs the same PP-OCR models on CUDA with no extra
+  package (torch is already there for ASR), and it halves the per-frame cost —
+  but a first A/B showed only 1.6-2x, which is not worth a second inference path.
+  Splitting the call explained why: detection is 130 ms of a 1072 ms frame on
+  CUDA, so recognition is ~87%, and recognition was running in batches of 6 —
+  about 21 small forward passes for a 121-line screen. At batch 32 the same
+  frame takes 343 ms (median of 5 runs) against 2550 ms for onnxruntime on CPU,
+  and the CPU engine alone improves from 2550 to 1495 ms. Batch 16 measured
+  *slower* than 6 in one session, so the shape of this curve is worth re-measuring
+  rather than assuming it is monotone.
+- **The torch engine needs a first-use download; onnxruntime does not.** Torch
+  checkpoints carry neither the character dictionary nor the metadata
+  onnxruntime embeds, so RapidOCR fetches weights (10.2 MB det, 21.3 MB rec,
+  0.6 MB cls) and `ppocrv6_dict.txt` from ModelScope into
+  `VIDEO_RAG_OCR_MODELS` (~32 MB once). A machine without that reachability
+  fails at construction, not at the first frame.
+- **Switching the engine moves unit merges, not boundaries.** Onnxruntime/CPU vs
+  torch/CUDA over the same lecture: 243/243 units matched within 2 s and 243/243
+  kept their mode, but 71 unit titles differed — both sides being toolbar or
+  product-header junk in a mode that has no title band — so the "merge
+  neighbours with identical titles" rule produced 259 units against 249. The
+  delivered table is what matters: 35/35 chapters, 35/35 identical titles, 18/35
+  identical start times (max shift 11.6 s, the rest under 1 s, from snapping to
+  a different unit onset).
 
 ## Reusing a chapter table on another machine
 

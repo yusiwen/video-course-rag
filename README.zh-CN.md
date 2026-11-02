@@ -90,6 +90,36 @@ uv pip install --index-strategy unsafe-best-match \
 | `VIDEO_RAG_ASR_DEVICE` | `cpu` / `cuda` / `mps`，默认 macOS 用 cpu、其余有 CUDA 就用 |
 | `VIDEO_RAG_OLLAMA` | embedding 服务地址，默认 `localhost:11434` |
 
+#### 更快的画面读字（可选）
+
+同一套 PP-OCR 模型可以走 torch 而不是 onnxruntime：
+
+```bash
+export VIDEO_RAG_OCR_ENGINE=torch   # 默认 onnxruntime
+export VIDEO_RAG_OCR_DEVICE=cuda
+```
+
+不用多装包——`asr` extra 里已经有 torch。代价是首次调用要把 torch 权重和字符字典
+（约 32 MB）下到 `~/.cache/video-course-rag/ocr`（`VIDEO_RAG_OCR_MODELS` 可改路径，
+`VIDEO_RAG_OCR_BATCH` 改识别批大小），因为 torch 权重里既没有字典，也没有 onnxruntime
+能读的那些元数据。
+
+同一门 92 分钟课程、同样的帧，实测：
+
+| | onnxruntime / CPU | torch / CUDA |
+|---|---|---|
+| 画面分段（`states`） | 22 分钟 | **8.5 分钟** |
+| 一张 121 行的 1080p 画面 | 2550 ms | 343 ms |
+| 仅检测（det） | 317 ms | 130 ms |
+
+差距由两个数字解释：识别占一张密集画面的 **87%**，而默认批大小 6 意味着 121 行要跑
+约 21 次小前向。torch 引擎默认把批设成 32，**单这一项就能把 CPU 引擎从 2550 ms 降到
+1495 ms**——所以即使没有 GPU，`VIDEO_RAG_OCR_BATCH` 也值得设。
+
+换引擎会让边缘 OCR 文本变化（工具栏标签里多一个空格、把一个图标读成字符），而合并规则
+正是"相邻单元标题相同则合并"：这门课的画面单元从 259 变成 249。但单元边界与模式没有
+移动（243/243 在 ±2 秒内），而交付的章标题来自 LLM 切章表，不依赖这些单元标题。
+
 实测（同一段 92 分钟课程，Mac 用 Vision+CPU，Spark 用 RapidOCR+CUDA）：
 
 - 转写快 18 倍（92 分钟音频 19.7 秒），文字与 macOS 结果相似度 0.9998
