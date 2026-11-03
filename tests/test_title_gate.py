@@ -66,6 +66,26 @@ def test_chrome_variants_are_chrome():
         assert v is not None and v[0] in ("chrome_title", "chrome_variant"), variant
 
 
+def test_a_title_that_merely_contains_chrome_is_not_a_variant():
+    """A topic can embed a navigation label; the label must not condemn it.
+
+    «模型定义» is a recurring line on the designer's navigation panel, so it is
+    chrome. «业务模型定义» is the slide about that panel's topic, and the flat
+    "within six characters at 0.75" window called it a variant — an EXPO finding
+    that blocked delivery on a correct title.
+    """
+    chrome = {norm("模型定义"), norm("文字方向")}
+    assert verdict("业务模型定义", chrome, set()) is None
+    assert verdict("模型内容定义", chrome, set()) is None
+    # the jitter cases the rule exists for still fire: one glyph arriving at an
+    # edge, and noise inside a header long enough to carry it
+    assert verdict("SACME 平台名称", {norm("ACME 平台名称")}, set())[0] == "chrome_variant"
+    assert verdict("数据IE平台管理面板", {norm("数据平台管理面板")}, set())[0] == "chrome_variant"
+    # a four-character label inside a six-character title is the case no string
+    # metric can separate from jitter; the rule prefers to miss that one
+    assert verdict("数据IE平台", {norm("数据平台")}, set()) is None
+
+
 def test_composite_judged_fragment_by_fragment():
     chrome = {norm("百度一下，我就知道"), norm("ACME企业应用")}
     v = verdict("百度一下，我就知道 · ACME企业应用", chrome, set())

@@ -39,6 +39,11 @@ UI_WORDS = frozenset((
     "下一页", "确定", "取消", "编辑", "删除", "新建", "打开", "属性",
 ))
 SEP = " · "
+# A chrome variant is the same header read wrong, not a longer title that happens
+# to embed one: one character of slack per ~7 chars, at 0.85 similarity.
+VARIANT_RATIO = 0.85
+VARIANT_CHARS = 1
+VARIANT_SHARE = 0.15
 MAX_TITLE_CHARS = 40
 CLOCK_RE = re.compile(r"\b\d{1,2}:\d{2}(:\d{2})?\b")
 # A window/app title bar ("… · System Dashboard", "x.pptx - PowerPoint",
@@ -63,11 +68,11 @@ def _verdict_single(t, chrome, acronyms):
     if tn in chrome:
         return ("chrome_title", "高持续率文本，是外壳或水印")
     # OCR reads the same header differently each time («ACME 平台名称»,
-    # «XACME 平台名称», «，ACME 平台名称»), so an exact set is not
-    # enough: a near-match to a known chrome string is chrome too.
-    for c in chrome:
-        if abs(len(c) - len(tn)) <= 6 and similar(tn, c):
-            return ("chrome_variant", "与外壳文字近似（OCR 变体）")
+    # «XACME 平台名称», «，ACME 平台名称»), so an exact set is not enough: a
+    # near-match to a known chrome string is chrome too. See _chrome_variant for
+    # why the window is relative to the string rather than a flat six chars.
+    if _chrome_variant(tn, chrome):
+        return ("chrome_variant", "与外壳文字近似（OCR 变体）")
     if tn in UI_WORDS or t in UI_WORDS:
         return ("ui_word", "整条就是界面元素文字")
     if len(t) < 3 or SYMBOL_RE.match(t):
@@ -77,6 +82,33 @@ def _verdict_single(t, chrome, acronyms):
     if t.isascii() and t.upper() not in acronyms:
         return ("ascii_only", "纯 ASCII 且不是本课高频缩写")
     return None
+
+
+def _chrome_variant(tn, chrome):
+    """Is `tn` the same header read slightly wrong?
+
+    Jitter adds or drops about a character per word («ACME 平台名称» /
+    «SACME 平台名称», ratio 0.93), which is what this rule is for. A title that
+    merely CONTAINS a chrome phrase is not jitter, and the flat "within six
+    characters at 0.75" window could not tell them apart: «业务模型定义» embeds the
+    navigation label «模型定义» (four chars inside six, ratio 0.80) and the audit
+    reported it as a variant — an EXPO finding, which blocks delivery, on a title
+    that is the actual chapter topic. The window is therefore proportional to the
+    string, the way UI_WORDS is matched whole rather than by substring.
+
+    The cost is deliberate: a four-character label inside a six-character title
+    («数据IE平台» over «数据平台») is indistinguishable from jitter by any string
+    metric, so it stops being a variant — a missed RISK costs less than a false
+    EXPO on a correct title.
+    """
+    for c in chrome:
+        longer = max(len(c), len(tn))
+        slack = max(VARIANT_CHARS, round(VARIANT_SHARE * longer))
+        if abs(len(c) - len(tn)) > slack:
+            continue
+        if similar(tn, c, VARIANT_RATIO):
+            return True
+    return False
 
 
 def verdict(title, chrome=(), acronyms=()):
