@@ -70,8 +70,9 @@ observed while building the pipeline, not guessed.
   246 units' `jump`, `jump_lag` and `jump_title_match`.
 - **Know what a stage is made of before optimizing it.** `chapter` runs settle +
   table + llm_chapters + fuse, measured on a CUDA box at 340 s / 0.06 s / 0.04 s
-  / 0.40 s — the other three are rounding error, so "chapter is slow" is a
-  statement about settle and nothing else. The cost there is frames × (grab +
+  / 0.40 s **before** the unnamed-unit skip described above — the whole command is
+  21 s after it. The other three links are rounding error either way, so "chapter
+  is slow" is a statement about settle and nothing else. The cost there is frames × (grab +
   OCR); on the GPU path a frame is ~0.74 s, of which the OCR is ~0.34 s and a
   fresh ffmpeg seek the rest.
 - **Switching the engine moves unit merges, not boundaries.** Onnxruntime/CPU vs

@@ -141,8 +141,13 @@ RapidOCR + CUDA):
   is 0.9998 similar to the macOS one
 - all 35 chapters land on the macOS boundary with 35/35 identical titles — but
   only because the chapter table carries `start_text` (see `docs/limitations.md`)
-- screen segmentation is 7x slower (22 min vs 3 min); OCR is the only bottleneck
-  on Linux
+- screen segmentation is **1.1x** slower after the CUDA switch (8.5 min against
+  7.5 min on the same lecture). It was 2.9x on the CPU engine (22 min). Inside
+  that stage OCR is 66% and ffmpeg frame grabs 14%, so it is the largest cost,
+  not the only one
+- `chapter` fell from 17 min to **21 s**: the jump scan read up to nine frames per
+  unit, including the 231 of 246 that have no title, where the match predicate is
+  zero by construction and the loop returns the start it already had
 - calibration often finds no title band on Linux, so unit titles fall back to
   neutral labels. That is deliberate: naming a chapter after a toolbar button is
   worse than admitting it has no name, and chapter titles come from the LLM table
@@ -158,7 +163,7 @@ src/video_rag/        pipeline stages, one package per layer
   chapter/            transcript chapters, fusion, the unit-derived table
   retrieval/          chunks, glossary, embeddings, search, ask, evaluation
   pack/               the page (HTML/CSS/JS in assets/), the package builder
-  ocr/                macOS Vision backend
+  ocr/                the backend dispatch (Vision on macOS, RapidOCR elsewhere)
 native/ocr/ocr.swift  OCR helper source (compiled, never committed)
 tests/                invariants, zero third-party dependencies
 tools/                leak scan, page measurement
@@ -168,8 +173,9 @@ docs/                 English; *.zh-CN.md is the Chinese version
 ## Known limits (alpha)
 
 - **Both macOS and Linux can build.** macOS reads frames with Vision, Linux with
-  RapidOCR. The two do not agree word for word: screen segmentation is about 7x
-  slower on Linux and unit titles are weaker there (see "On Linux" above).
+  RapidOCR. The two do not agree word for word: screen segmentation is about 1.1x
+  slower on Linux with the CUDA engine (2.9x on the CPU one) and unit titles are
+  weaker there (see "On Linux" above).
 - **Chinese first.** Sentence splitting, title heuristics and the UI copy were
   designed around Chinese lecture recordings. English material is untested and
   the title filter currently discards non-CJK lines.
